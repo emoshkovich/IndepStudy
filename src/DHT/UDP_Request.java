@@ -5,6 +5,10 @@ package DHT;
  */
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.HashMap;
 
 /**
  * This class
@@ -42,18 +46,21 @@ public class UDP_Request {
 		String temp = new String(dp_receive.getData());
 		System.out.println("BENCODED: "
 				+ temp);
-		System.out.println("DECODED: "
-				+ benc.unbencodeDictionary(dp_receive.getData()));
+		HashMap decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
+		System.out.println("DECODED: " + decoded_reply);
+		byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
+		
+		byte[] ip_bytes = Arrays.copyOfRange(ip_and_port_bytes, 0, 4);
+		InetAddress ip_address = InetAddress.getByAddress(ip_bytes);
+		
+		byte[] port_bytes = Arrays.copyOfRange(ip_and_port_bytes, 4, 6);
+		short[] shorts = new short[1];
+		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts);
+		short port = shorts[0];
+		
+		System.out.println("returned ip address: " + ip_address);
+		System.out.println("returned port: " + port);
 
-		byte[] ip = new byte[4];
-		for (int j = 0; j < dp_receive.getLength(); j++){
-		for (int i = j; i < j+4; i++){
-			ip[i-j] = dp_receive.getData()[i];
-		}
-		System.out.println("ip using the response message: " + InetAddress.getByAddress(ip));
-		}
-		System.out.println("ip using getAddresst(): " + dp_receive.getAddress());
-		System.out.println("port using getPort(): " + dp_receive.getPort());
 		// remove this after done. For now, keep it to make sure the number is
 		// always less than 512
 		System.out.println("length of received packet: "
