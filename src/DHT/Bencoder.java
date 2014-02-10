@@ -18,6 +18,7 @@ package DHT;
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -85,9 +86,52 @@ public class Bencoder {
 		return return_bytes;
 	}
 
-	public String unbencodeString(byte[] input) {
-		index.index = 0;
-		return unbencodeString(input, index);
+
+	/**
+	 * Parses a bencoded String located <code>input[index</code> and returns it
+	 * as a String object.
+	 * 
+	 * @param input
+	 *            Contains bencoded data.
+	 * @param index
+	 *            A valid index into <code>data</code> that points to the
+	 *            beginning of a bencoded String.
+	 * @return A String representing the bencoded String at
+	 *         <code>data[index]</code>.
+	 */
+	public byte[] unbencodeByteArray(byte[] input, Index index) {
+		String return_string = null;
+		int temp_index = index.index;
+		int power_of_ten = 1;
+		int length_of_string = 0;
+		boolean first_digit = false;
+		StringBuffer temp_string = new StringBuffer();
+
+		// Determine the length of the integer representing the String's length.
+		while (input[temp_index] != (byte) ':') {
+			if (first_digit) {
+				power_of_ten *= 10;
+			}
+			first_digit = true;
+			temp_index++;
+		}
+
+		// Determine the length of the string.
+		while (input[index.index] != (byte) ':') {
+			length_of_string += ((input[index.index] - 48) * power_of_ten);
+			power_of_ten /= 10;
+			index.index++;
+
+		}
+
+		// Skip the ':'
+		index.index++;
+
+		// Extract the string.
+		byte[] return_array = Arrays.copyOfRange(input, index.index, index.index + length_of_string);
+		index.index += length_of_string;
+
+		return return_array;
 	}
 
 	/**
@@ -143,6 +187,7 @@ public class Bencoder {
 		return return_string;
 	}
 
+	
 	public byte[] bencodeInteger(Integer input) {
 		byte[] return_bytes;
 
@@ -359,7 +404,7 @@ public class Bencoder {
 				value = unbencodeInteger(input, index);
 				break;
 			case STRING:
-				value = unbencodeString(input, index);
+				value = unbencodeByteArray(input, index);
 				break;
 			case LIST:
 				value = unbencodeList(input, index);
@@ -450,7 +495,7 @@ public class Bencoder {
 				return_list.add(unbencodeInteger(input, index));
 				break;
 			case STRING:
-				return_list.add(unbencodeString(input, index));
+				return_list.add(unbencodeByteArray(input, index));
 				break;
 			case LIST:
 				return_list.add(unbencodeList(input, index));
