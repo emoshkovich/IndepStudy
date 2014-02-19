@@ -15,14 +15,16 @@ import java.util.HashMap;
  */
 public class UDP_Request {
 	public final int PACKET_SIZE = 512;
+
 	private String bootstrap_addr_str = "router.bittorrent.com";
 	private int bootstrap_port = 6881;
+	private String id = "abcdefghij0123456789";
 	private InetAddress bootstrap_addr;
 	private DatagramSocket socket;
 
 	private Bencoder benc = new Bencoder();
 
-	private void sendPing() throws Exception {
+	public void sendPing() throws Exception {
 		socket = new DatagramSocket();
 		bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
 		// System.out.println(bootstrap_addr);
@@ -43,28 +45,25 @@ public class UDP_Request {
 				response_to_ping_b.length);
 		socket.receive(dp_receive);
 
-		String temp = new String(dp_receive.getData());
-		System.out.println("BENCODED: "
-				+ temp);
 		HashMap decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
 		System.out.println("DECODED: " + decoded_reply);
 		byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
+
+		//HashMap r = (HashMap) decoded_reply.get("r");
+		//System.out.println("ID: " + r);
 		
 		byte[] ip_bytes = Arrays.copyOfRange(ip_and_port_bytes, 0, 4);
 		InetAddress ip_address = InetAddress.getByAddress(ip_bytes);
-		
+
 		byte[] port_bytes = Arrays.copyOfRange(ip_and_port_bytes, 4, 6);
 		short[] shorts = new short[1];
-		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts);
-		short port = shorts[0];
-		
+		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN)
+				.asShortBuffer().get(shorts);
+		short signed_port = shorts[0];
+		int port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
+
 		System.out.println("returned ip address: " + ip_address);
 		System.out.println("returned port: " + port);
-
-		// remove this after done. For now, keep it to make sure the number is
-		// always less than 512
-		System.out.println("length of received packet: "
-				+ dp_receive.getLength() + " " + temp.length());
 
 		// Requestor's ip address. So far I do not need it.
 		/*
@@ -75,7 +74,7 @@ public class UDP_Request {
 		 */
 	}
 
-	private void sendFindNode() throws Exception {
+	public void sendFindNode() throws Exception {
 		socket = new DatagramSocket();
 		bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
 		String fn_s = "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe";
@@ -94,10 +93,20 @@ public class UDP_Request {
 				+ "\n length: " + dp_receive.getLength());
 	}
 
-	public static void main(String argv[]) throws Exception {
-		UDP_Request req = new UDP_Request();
-		req.sendPing();
-		// req.sendFindNode();
+	public void getPeers(String info_hash) {
+		HashMap args = new HashMap();
+		
+		args.put("id", id);
+		args.put("info_hash", info_hash);
+		
+		HashMap send_hm = new HashMap();
+		send_hm.put("t", "aa");
+		send_hm.put("y", "q");
+		send_hm.put("q", "get_peers");
+		send_hm.put("a", args);
+		byte[] send_packet = benc.bencodeDictionary(send_hm);
+		String s = new String(send_packet);
+		System.out.println(s);
 
 	}
 }
