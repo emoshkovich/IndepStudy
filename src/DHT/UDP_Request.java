@@ -94,12 +94,12 @@ public class UDP_Request {
 	}
 
 	public void getPeers(String info_hash) {
-		HashMap args = new HashMap();
+		HashMap<byte[], byte[]> args = new HashMap<byte[], byte[]>();		
+		args.put(benc.bencodeString("id"), benc.bencodeString(id));
+		args.put(benc.bencodeString("info_hash"), benc.bencodeString(info_hash));
+		byte[] args_array = benc.bencodeDictionary(args);
 		
-		args.put("id", id);
-		args.put("info_hash", info_hash);
-		
-		HashMap send_hm = new HashMap();
+		HashMap<byte[], byte[]> send_hm = new HashMap<byte[], byte[]>();
 		send_hm.put("t", "aa");
 		send_hm.put("y", "q");
 		send_hm.put("q", "get_peers");
