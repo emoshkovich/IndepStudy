@@ -312,15 +312,15 @@ public class Bencoder {
 	 *            in a dictionary.
 	 * @return
 	 */
-	public byte[] bencodeDictionary(HashMap input) {
+	public byte[] bencodeDictionary(HashMap<byte[], byte[]> input) {
 		byte[] return_bytes = null;
 		int length = 0;
-		Vector dictionary_entries = new Vector();
+		Vector<byte[]> dictionary_entries = new Vector<byte[]>();
 
-		Iterator input_iterator = input.entrySet().iterator();
+		Iterator<Map.Entry<byte[], byte[]> > input_iterator = input.entrySet().iterator();
 
 		while (input_iterator.hasNext()) {
-			Map.Entry me = (Map.Entry) input_iterator.next();
+			Map.Entry<byte[], byte[]> me = (Map.Entry<byte[], byte[]>) input_iterator.next();
 			length += ((byte[]) me.getKey()).length;
 			length += ((byte[]) me.getValue()).length;
 			dictionary_entries.add((byte[]) me.getKey());
@@ -438,7 +438,7 @@ public class Bencoder {
 	 *            A Vector containing bencoded data.
 	 * @return
 	 */
-	public byte[] bencodeList(Vector input) {
+	public byte[] bencodeList(Vector<byte[]> input) {
 
 		byte[] return_bytes = null;
 		int length = 0;
