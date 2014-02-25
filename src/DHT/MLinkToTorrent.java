@@ -2,6 +2,9 @@ package DHT;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class MLinkToTorrent {
 	public final int INFO_HASH_CH_NUM = 40;
@@ -10,14 +13,12 @@ public class MLinkToTorrent {
 	private String tf_extension = ".torrent";
 	private static String info_hash;
 	private UDP_Request request;
-	
-	public MLinkToTorrent(){
+
+	public MLinkToTorrent() {
 		request = new UDP_Request();
 	}
-	
-	
 
-	private void parseMagnetLink(String ml) {
+	private void parseMagnetLink(String ml) throws UnsupportedEncodingException {
 		System.out.println(ml);
 		// Magnet link identifier
 		String ml_identifier = "magnet:";
@@ -26,9 +27,21 @@ public class MLinkToTorrent {
 		String btih = "?xt=urn:btih:";
 
 		String mlink = ml.substring(ml_identifier.length() + btih.length());
-		System.out.println(mlink);
-		info_hash = mlink.substring(0, INFO_HASH_CH_NUM);
+		String hex_info_hash = mlink.substring(0, INFO_HASH_CH_NUM);
+		System.out.println(hex_info_hash);
+		info_hash = hexToString(hex_info_hash);
 		System.out.println(info_hash);
+	}
+
+	private String hexToString(String hexStr)
+			throws UnsupportedEncodingException {
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < hexStr.length() - 1; i += 2) {
+			String str = hexStr.substring(i, i + 2);
+			int dec = Integer.parseInt(str, 16);
+			sb.append((char) dec);
+		}
+		return sb.toString();
 	}
 
 	/**
@@ -55,10 +68,10 @@ public class MLinkToTorrent {
 		UDP_Request req = new UDP_Request();
 		MLinkToTorrent mlt = new MLinkToTorrent();
 		req.sendPing();
-		//req.sendFindNode();
+		// req.sendFindNode();
 		mlt.parseMagnetLink(ml);
-		req.getPeers(info_hash);
-		//mlt.createTorrentFile();
+		req.getNodes(info_hash);
+		// mlt.createTorrentFile();
 
 	}
 }

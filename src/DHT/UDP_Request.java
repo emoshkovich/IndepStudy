@@ -93,20 +93,41 @@ public class UDP_Request {
 				+ "\n length: " + dp_receive.getLength());
 	}
 
-	public void getPeers(String info_hash) {
+	public byte[] getNodes(String info_hash) throws Exception {
 		HashMap<byte[], byte[]> args = new HashMap<byte[], byte[]>();		
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
 		args.put(benc.bencodeString("info_hash"), benc.bencodeString(info_hash));
-		byte[] args_array = benc.bencodeDictionary(args);
 		
 		HashMap<byte[], byte[]> send_hm = new HashMap<byte[], byte[]>();
-		send_hm.put("t", "aa");
-		send_hm.put("y", "q");
-		send_hm.put("q", "get_peers");
-		send_hm.put("a", args);
+		send_hm.put(benc.bencodeString("t"), benc.bencodeString("aa"));
+		send_hm.put(benc.bencodeString("y"), benc.bencodeString("q"));
+		send_hm.put(benc.bencodeString("q"), benc.bencodeString("get_peers"));
+		send_hm.put(benc.bencodeString("a"), benc.bencodeDictionary(args));
 		byte[] send_packet = benc.bencodeDictionary(send_hm);
 		String s = new String(send_packet);
 		System.out.println(s);
+		
+		// Send the message and receive the response
+		socket = new DatagramSocket();
+		bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
+		byte[] response_to_ping_b = new byte[10000000];
+		DatagramPacket dp_send = new DatagramPacket(send_packet, send_packet.length,
+				bootstrap_addr, bootstrap_port);
+		socket.send(dp_send);
 
+		// Receiving the message
+		DatagramPacket dp_receive = new DatagramPacket(response_to_ping_b,
+				response_to_ping_b.length);
+		socket.receive(dp_receive);
+
+		System.out.println(dp_receive.getLength());
+		HashMap decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
+		System.out.println("DECODED getPeers: " + decoded_reply);
+		HashMap r = (HashMap) decoded_reply.get("r");
+		
+		// The nodes array is 416 characters long
+		byte[] nodes = (byte[]) r.get("nodes");
+		 
+		return nodes;
 	}
 }
