@@ -70,7 +70,7 @@ public class MLinkToTorrent {
 		req.sendPing();
 		// req.sendFindNode();
 		mlt.parseMagnetLink(ml);
-		req.getNodes(info_hash);
+		req.get_peers(info_hash);
 		// mlt.createTorrentFile();
 
 	}

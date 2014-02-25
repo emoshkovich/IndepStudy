@@ -93,7 +93,7 @@ public class UDP_Request {
 				+ "\n length: " + dp_receive.getLength());
 	}
 
-	public byte[] getNodes(String info_hash) throws Exception {
+	public byte[] get_peers(String info_hash) throws Exception {
 		HashMap<byte[], byte[]> args = new HashMap<byte[], byte[]>();		
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
 		args.put(benc.bencodeString("info_hash"), benc.bencodeString(info_hash));
@@ -110,7 +110,7 @@ public class UDP_Request {
 		// Send the message and receive the response
 		socket = new DatagramSocket();
 		bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
-		byte[] response_to_ping_b = new byte[10000000];
+		byte[] response_to_ping_b = new byte[PACKET_SIZE];
 		DatagramPacket dp_send = new DatagramPacket(send_packet, send_packet.length,
 				bootstrap_addr, bootstrap_port);
 		socket.send(dp_send);
@@ -121,6 +121,7 @@ public class UDP_Request {
 		socket.receive(dp_receive);
 
 		System.out.println(dp_receive.getLength());
+		
 		HashMap decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
 		System.out.println("DECODED getPeers: " + decoded_reply);
 		HashMap r = (HashMap) decoded_reply.get("r");
