@@ -47,24 +47,11 @@ public class UDP_Request {
 
 		HashMap decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
 		System.out.println("DECODED: " + decoded_reply);
+		
 		byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
 
-		//HashMap r = (HashMap) decoded_reply.get("r");
-		//System.out.println("ID: " + r);
-		
-		byte[] ip_bytes = Arrays.copyOfRange(ip_and_port_bytes, 0, 4);
-		InetAddress ip_address = InetAddress.getByAddress(ip_bytes);
-
-		byte[] port_bytes = Arrays.copyOfRange(ip_and_port_bytes, 4, 6);
-		short[] shorts = new short[1];
-		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN)
-				.asShortBuffer().get(shorts);
-		short signed_port = shorts[0];
-		int port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
-
-		System.out.println("returned ip address: " + ip_address);
-		System.out.println("returned port: " + port);
-
+		getIp(ip_and_port_bytes);
+		getPort(ip_and_port_bytes);
 		// Requestor's ip address. So far I do not need it.
 		/*
 		 * try { InetAddress addr = InetAddress.getLocalHost(); String ip =
@@ -72,6 +59,45 @@ public class UDP_Request {
 		 * (UnknownHostException e) { // TODO Auto-generated catch block
 		 * e.printStackTrace(); }
 		 */
+	}
+	
+	private InetAddress getIp(byte[] compactInfo) throws UnknownHostException{
+		byte[] ip_bytes = Arrays.copyOfRange(compactInfo, 0, 4);
+		System.out.println("returned ip: " + InetAddress.getByAddress(ip_bytes));
+		
+		return InetAddress.getByAddress(ip_bytes);
+	}
+	
+	private int getPort(byte[] compactInfo) throws UnknownHostException{
+		byte[] port_bytes = Arrays.copyOfRange(compactInfo, 4, 6);
+		short[] shorts = new short[1];
+		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN)
+				.asShortBuffer().get(shorts);
+		short signed_port = shorts[0];
+		Integer port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
+		
+		System.out.println("returned port: " + port);
+		return port;
+	}
+	
+	private HashMap requestResponse(byte[] send_packet, InetAddress ip, int port) throws IOException{
+		// Send the message and receive the response
+				InetAddress address = InetAddress.getByName(bootstrap_addr_str);
+				DatagramSocket socket = new DatagramSocket();
+				byte[] response_to_ping_b = new byte[PACKET_SIZE];
+				DatagramPacket dp_send = new DatagramPacket(send_packet, send_packet.length,
+						address, port);
+				socket.send(dp_send);
+
+				// Receiving the message
+				DatagramPacket dp_receive = new DatagramPacket(response_to_ping_b,
+						response_to_ping_b.length);
+				socket.receive(dp_receive);
+
+				System.out.println(dp_receive.getLength());
+
+				HashMap decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
+				return decoded_reply;
 	}
 
 	public void sendFindNode() throws Exception {
@@ -106,29 +132,24 @@ public class UDP_Request {
 		byte[] send_packet = benc.bencodeDictionary(send_hm);
 		String s = new String(send_packet);
 		System.out.println(s);
+		byte[] nodes = null;
+		InetAddress address = bootstrap_addr;
+		int port = bootstrap_port;
 		
-		// Send the message and receive the response
-		socket = new DatagramSocket();
-		bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
-		byte[] response_to_ping_b = new byte[PACKET_SIZE];
-		DatagramPacket dp_send = new DatagramPacket(send_packet, send_packet.length,
-				bootstrap_addr, bootstrap_port);
-		socket.send(dp_send);
-
-		// Receiving the message
-		DatagramPacket dp_receive = new DatagramPacket(response_to_ping_b,
-				response_to_ping_b.length);
-		socket.receive(dp_receive);
-
-		System.out.println(dp_receive.getLength());
+		for (int i = 0; i < 100; i++){
+			System.out.println(i);
+		HashMap decoded_reply = requestResponse(send_packet, address, port);
 		
-		HashMap decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
 		System.out.println("DECODED getPeers: " + decoded_reply);
 		HashMap r = (HashMap) decoded_reply.get("r");
 		
 		// The nodes array is 416 characters long
-		byte[] nodes = (byte[]) r.get("nodes");
-		 
+		nodes = (byte[]) r.get("nodes");
+		
+		byte[] first_node = Arrays.copyOfRange(nodes, 0, 6);
+		address = getIp(first_node);
+		port = getPort(first_node);
+		}
 		return nodes;
 	}
 }
