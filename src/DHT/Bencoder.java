@@ -21,6 +21,7 @@ package DHT;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Vector;
 
@@ -312,7 +313,7 @@ public class Bencoder {
 	 *            in a dictionary.
 	 * @return
 	 */
-	public byte[] bencodeDictionary(HashMap<byte[], byte[]> input) {
+	public byte[] bencodeDictionary(Map<byte[], byte[]> input) {
 		byte[] return_bytes = null;
 		int length = 0;
 		Vector<byte[]> dictionary_entries = new Vector<byte[]>();
@@ -354,7 +355,7 @@ public class Bencoder {
 	 *            beginning of a bencoded Dictionary.
 	 * @return A Map representing the bencoded Dictionary at <code>input</code>.
 	 */
-	public HashMap unbencodeDictionary(byte[] input) {
+	public Map unbencodeDictionary(byte[] input) {
 		index.index = 0;
 		return unbencodeDictionary(input, index);
 	}
@@ -371,8 +372,8 @@ public class Bencoder {
 	 * @return A Map representing the bencoded Dictionary at
 	 *         <code>input[index]</code>.
 	 */
-	public HashMap unbencodeDictionary(byte[] input, Index index) {
-		HashMap returned_map = new HashMap();
+	public Map unbencodeDictionary(byte[] input, Index index) {
+		Map returned_map = new LinkedHashMap();
 		String key;
 		Object value;
 
