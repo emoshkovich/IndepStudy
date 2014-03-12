@@ -67,10 +67,11 @@ public class MLinkToTorrent {
 		String ml = "magnet:?xt=urn:btih:9d99e5402c95a5967f3cd360a1d7f4e4da1b6a07&dn=Games+Of+Thrones+Season+1&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker.ccc.de%3A80&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
 		UDP_Request req = new UDP_Request();
 		MLinkToTorrent mlt = new MLinkToTorrent();
-		//req.sendPing();
+		req.sendPing();
 		// req.sendFindNode();
 		mlt.parseMagnetLink(ml);
-		req.get_peers(info_hash);
+		req.sendFindNode();
+		//req.get_peers(info_hash);
 		// mlt.createTorrentFile();
 
 	}
