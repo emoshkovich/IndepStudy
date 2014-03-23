@@ -11,17 +11,90 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+class MessageThread extends Thread {
+	private Bencoder benc = new Bencoder();
+	private byte[] send_packet;
+	private InetAddress ip;
+	private int port;
+	private Map decoded_reply;
+
+	public MessageThread(byte[] send_packet, InetAddress ip, int port) {
+		this.send_packet = send_packet;
+		this.ip = ip;
+		this.port = port;
+	}
+
+	public synchronized void run() {
+		System.out.println(Thread.currentThread().getName());
+		// Send the message and receive the response
+		DatagramSocket socket = null;
+		try {
+			socket = new DatagramSocket();
+		} catch (SocketException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		byte[] response_to_ping_b = new byte[UDP_Request.PACKET_SIZE];
+		DatagramPacket dp_send = new DatagramPacket(send_packet,
+				send_packet.length, ip, port);
+		try {
+			socket.send(dp_send);
+			socket.setSoTimeout(1000);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		// Receiving the message
+		DatagramPacket dp_receive = new DatagramPacket(response_to_ping_b,
+				response_to_ping_b.length);
+		try {
+			socket.receive(dp_receive);
+		} catch (SocketTimeoutException e) {
+			System.out.println("GOT TO EXCEPTION " + socket.isClosed());
+			socket.close();
+			System.out.println("AFTER EXCEPTION " + socket.isClosed());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		// If the socket was not closed before, close it
+		finally {
+			if (socket != null && !socket.isClosed()) {
+				socket.close();
+			}
+
+			System.out.println("Socket was closed: " + socket.isClosed());
+			notify();
+		}
+
+		System.out.println("received packet length: " + dp_receive.getLength());
+
+		decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
+	}
+
+	public Map getDecodedReply() {
+		return decoded_reply;
+	}
+
+}
+
 /**
  * This class
  */
 public class UDP_Request {
-	public final int PACKET_SIZE = 512;
+	public final static int PACKET_SIZE = 512;
 
-	private String bootstrap_addr_str = "67.215.242.138";//"router.bittorrent.com";
+	private String bootstrap_addr_str = "67.215.242.138";// "router.bittorrent.com";
 	private int bootstrap_port = 6881;
 	private String id = "abcdefghij0123456789";
 	// private InetAddress bootstrap_addr;
 	private DatagramSocket socket;
+
+	// UDP requests parameters data
+	private byte[] send_packet;
+	private InetAddress ip;
+	private int port;
+	// private Map decoded_reply;
 
 	private Bencoder benc = new Bencoder();
 
@@ -52,9 +125,10 @@ public class UDP_Request {
 		 */
 
 		InetAddress bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
-		LinkedHashMap decoded_reply = udpRequestResponse(ping_s.getBytes(),
+		LinkedHashMap decoded_reply2 = udpRequestResponse(ping_s.getBytes(),
 				bootstrap_addr, bootstrap_port);
-		byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
+		System.out.println(decoded_reply2);
+		byte[] ip_and_port_bytes = (byte[]) decoded_reply2.get("ip");
 
 		getIp(ip_and_port_bytes);
 		getPort(ip_and_port_bytes);
@@ -64,8 +138,9 @@ public class UDP_Request {
 		byte[] ip_bytes = Arrays.copyOfRange(compactInfo, 0, 4);
 		System.out
 				.println("returned ip: " + InetAddress.getByAddress(ip_bytes));
-		byte[] b = {(byte) 01011111,(byte) 10000110, (byte) 01011100, (byte) 11011000};
-//System.out.println("CHECK: " + InetAddress.getByAddress(b));
+		byte[] b = { (byte) 01011111, (byte) 10000110, (byte) 01011100,
+				(byte) 11011000 };
+		// System.out.println("CHECK: " + InetAddress.getByAddress(b));
 		return InetAddress.getByAddress(ip_bytes);
 	}
 
@@ -81,52 +156,45 @@ public class UDP_Request {
 		return port;
 	}
 
-	private LinkedHashMap udpRequestResponse(byte[] send_packet, InetAddress ip,
-			int port) throws IOException {
-		// Send the message and receive the response
-		DatagramSocket socket = new DatagramSocket();
-		byte[] response_to_ping_b = new byte[PACKET_SIZE];
-		DatagramPacket dp_send = new DatagramPacket(send_packet,
-				send_packet.length, ip, port);
-		socket.send(dp_send);
+	private LinkedHashMap udpRequestResponse(byte[] send_packet,
+			InetAddress ip, int port) throws IOException {
+		this.send_packet = send_packet;
+		this.ip = ip;
+		this.port = port;
 
-		// Receiving the message
-		DatagramPacket dp_receive = new DatagramPacket(response_to_ping_b,
-				response_to_ping_b.length);
-		socket.receive(dp_receive);
+		Thread th = new MessageThread(send_packet, ip, port);
+		th.start();
+		synchronized (th) {
+			try {
+				System.out.println("Waiting for th to complete...");
+				th.wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		System.out.println("Exited synchronized(th)");
 
-		System.out.println("received packet length: " + dp_receive.getLength());
-
-		Map decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
-		socket.close();
-		return (LinkedHashMap) decoded_reply;
+		return (LinkedHashMap) ((MessageThread) th).getDecodedReply();
 	}
 
-	/*private LinkedHashMap tcpRequestResponse(String send_packet, InetAddress ip,
-			int port) throws IOException {
-		System.out.println("tcp: ip: " + ip + ", port: " + port);
-		Socket socket = new Socket(ip, port);
-
-		System.out.println("last thing that worked");
-		// Send the message
-		DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-		if (send_packet != null && socket != null) {
-			dos.writeBytes(send_packet);
-		}
-
-		// Receive the message
-		BufferedReader in = new BufferedReader(new InputStreamReader(
-				socket.getInputStream()));
-		System.out.print("Received string: ");
-
-		while (!in.ready()) {
-		}
-		System.out.println(in.readLine()); // Read one line and output it
-
-		System.out.print("'\n");
-		in.close();
-		return null;
-	}*/
+	/*
+	 * private LinkedHashMap tcpRequestResponse(String send_packet, InetAddress
+	 * ip, int port) throws IOException { System.out.println("tcp: ip: " + ip +
+	 * ", port: " + port); Socket socket = new Socket(ip, port);
+	 * 
+	 * System.out.println("last thing that worked"); // Send the message
+	 * DataOutputStream dos = new DataOutputStream(socket.getOutputStream()); if
+	 * (send_packet != null && socket != null) { dos.writeBytes(send_packet); }
+	 * 
+	 * // Receive the message BufferedReader in = new BufferedReader(new
+	 * InputStreamReader( socket.getInputStream()));
+	 * System.out.print("Received string: ");
+	 * 
+	 * while (!in.ready()) { } System.out.println(in.readLine()); // Read one
+	 * line and output it
+	 * 
+	 * System.out.print("'\n"); in.close(); return null; }
+	 */
 
 	public void handShake(InetAddress ip, int port, String info_hash, String id)
 			throws IOException {
@@ -160,7 +228,6 @@ public class UDP_Request {
 
 	public void sendFindNode() throws Exception {
 		System.out.println("ENTER FIND_NODE");
-		socket = new DatagramSocket();
 		InetAddress bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
@@ -178,36 +245,41 @@ public class UDP_Request {
 		InetAddress address = InetAddress.getByName(bootstrap_addr_str);
 		int port = bootstrap_port;
 
-		 for (int i = 0; i < 100; i++) {
-		 System.out.println(i);
-		Map decoded_reply = udpRequestResponse(send_packet, address, port);
+		for (int i = 0; i < 100; i++) {
+			System.out.println(i);
+			Map decoded_reply = udpRequestResponse(send_packet, address, port);
 
-		System.out.println("DECODED find_node: " + decoded_reply);
-		Map r = (LinkedHashMap) decoded_reply.get("r");
+			System.out.println("DECODED find_node: " + decoded_reply);
+			if (decoded_reply.isEmpty()) {
+				System.out.println("decoded_reply is empty");
+			}
+			if (!decoded_reply.isEmpty()) {
+				Map r = (LinkedHashMap) decoded_reply.get("r");
 
-		// The nodes array is 416 characters long
-		nodes = (byte[]) r.get("nodes");
+				// The nodes array is 416 characters long
+				nodes = (byte[]) r.get("nodes");
 
-		byte[] first_node = Arrays.copyOfRange(nodes, 0, 6);
-		address = getIp(first_node);
-		port = getPort(first_node);
-		 }
-		/*String fn_s = "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe";
-		byte[] fn_b = fn_s.getBytes();
-		byte[] response_to_fn_b = new byte[fn_b.length];
-		// Sending the message
-		DatagramPacket dp_send = new DatagramPacket(fn_b, fn_b.length,
-				bootstrap_addr, bootstrap_port);
-		socket.send(dp_send);
+				byte[] first_node = Arrays.copyOfRange(nodes, 0, 6);
+				address = getIp(first_node);
+				port = getPort(first_node);
+			}
+		}
+		/*
+		 * String fn_s =
+		 * "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe"
+		 * ; byte[] fn_b = fn_s.getBytes(); byte[] response_to_fn_b = new
+		 * byte[fn_b.length]; // Sending the message DatagramPacket dp_send =
+		 * new DatagramPacket(fn_b, fn_b.length, bootstrap_addr,
+		 * bootstrap_port); socket.send(dp_send);
+		 * 
+		 * // Receiving the message DatagramPacket dp_receive = new
+		 * DatagramPacket(response_to_fn_b, response_to_fn_b.length);
+		 * socket.receive(dp_receive); System.out.println("Received data: " +
+		 * new String(dp_receive.getData()) + "\n length: " +
+		 * dp_receive.getLength());
+		 */
 
-		// Receiving the message
-		DatagramPacket dp_receive = new DatagramPacket(response_to_fn_b,
-				response_to_fn_b.length);
-		socket.receive(dp_receive);
-		System.out.println("Received data: " + new String(dp_receive.getData())
-				+ "\n length: " + dp_receive.getLength());*/
-
-			System.out.println("EXIT FIND_NODE");
+		System.out.println("EXIT FIND_NODE");
 	}
 
 	public byte[] get_peers(String info_hash) throws Exception {
@@ -227,22 +299,22 @@ public class UDP_Request {
 		InetAddress address = InetAddress.getByName(bootstrap_addr_str);
 		int port = bootstrap_port;
 
-		 for (int i = 0; i < 100; i++) {
-		 System.out.println(i);
-		Map decoded_reply = udpRequestResponse(send_packet, address, port);
+		for (int i = 0; i < 100; i++) {
+			System.out.println(i);
+			Map decoded_reply = udpRequestResponse(send_packet, address, port);
 
-		System.out.println("DECODED getPeers: " + decoded_reply);
-		Map r = (LinkedHashMap) decoded_reply.get("r");
+			System.out.println("DECODED getPeers: " + decoded_reply);
+			Map r = (LinkedHashMap) decoded_reply.get("r");
 
-		// The nodes array is 416 characters long
-		nodes = (byte[]) r.get("nodes");
+			// The nodes array is 416 characters long
+			nodes = (byte[]) r.get("nodes");
 
-		byte[] first_node = Arrays.copyOfRange(nodes, 0, 6);
-		address = getIp(first_node);
-		port = getPort(first_node);
+			byte[] first_node = Arrays.copyOfRange(nodes, 0, 6);
+			address = getIp(first_node);
+			port = getPort(first_node);
 
-		//handShake(address, port, info_hash, id);
-		 }
+			// handShake(address, port, info_hash, id);
+		}
 		return nodes;
 	}
 }
