@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -96,6 +97,7 @@ public class UDP_Request {
 	private int port;
 	// private Map decoded_reply;
 
+	private ArrayList compactInfoList = new ArrayList();
 	private Bencoder benc = new Bencoder();
 
 	public void sendPing() throws Exception {
@@ -245,23 +247,25 @@ public class UDP_Request {
 		InetAddress address = InetAddress.getByName(bootstrap_addr_str);
 		int port = bootstrap_port;
 
-		for (int i = 0; i < 100; i++) {
-			System.out.println(i);
-			Map decoded_reply = udpRequestResponse(send_packet, address, port);
+		Map decoded_reply = udpRequestResponse(send_packet, address, port);
 
-			System.out.println("DECODED find_node: " + decoded_reply);
-			if (decoded_reply.isEmpty()) {
-				System.out.println("decoded_reply is empty");
-			}
-			if (!decoded_reply.isEmpty()) {
-				Map r = (LinkedHashMap) decoded_reply.get("r");
+		System.out.println("DECODED find_node: " + decoded_reply);
+		if (decoded_reply.isEmpty()) {
+			System.out.println("decoded_reply is empty");
+		}
+		if (!decoded_reply.isEmpty()) {
+			Map r = (LinkedHashMap) decoded_reply.get("r");
+			// The nodes array is 416 characters long
+			nodes = (byte[]) r.get("nodes");
+			System.out.println("DELTHIS: " + nodes.length);
+			addCompactInfo(nodes);
+			for (int i = 0; i < compactInfoList.size(); i++) {
+				System.out.println(i);
 
-				// The nodes array is 416 characters long
-				nodes = (byte[]) r.get("nodes");
+				byte[] node_info = (byte[]) compactInfoList.get(i);
+				address = getIp(node_info);
+				port = getPort(node_info);
 
-				byte[] first_node = Arrays.copyOfRange(nodes, 0, 6);
-				address = getIp(first_node);
-				port = getPort(first_node);
 			}
 		}
 		/*
@@ -280,6 +284,18 @@ public class UDP_Request {
 		 */
 
 		System.out.println("EXIT FIND_NODE");
+	}
+
+	private void addCompactInfo(byte[] nodes) {
+		if ((nodes.length % 6) != 0) {
+			System.out.println("nodes compact info has wrong length: " + nodes.length);
+		}
+		for (int i = 0; i < nodes.length;) {
+			int j = i + 6;
+			compactInfoList.add(Arrays.copyOfRange(nodes, i, j));
+			i = j + 1;
+		}
+		System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
 	}
 
 	public byte[] get_peers(String info_hash) throws Exception {
