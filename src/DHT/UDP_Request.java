@@ -97,7 +97,7 @@ public class UDP_Request {
 	private int port;
 	// private Map decoded_reply;
 
-	private ArrayList compactInfoList = new ArrayList();
+	private static ArrayList compactInfoList = new ArrayList();
 	private Bencoder benc = new Bencoder();
 
 	public void sendPing() throws Exception {
@@ -257,7 +257,6 @@ public class UDP_Request {
 			Map r = (LinkedHashMap) decoded_reply.get("r");
 			// The nodes array is 416 characters long
 			nodes = (byte[]) r.get("nodes");
-			System.out.println("DELTHIS: " + nodes.length);
 			addCompactInfo(nodes);
 			for (int i = 0; i < compactInfoList.size(); i++) {
 				System.out.println(i);
@@ -265,7 +264,7 @@ public class UDP_Request {
 				byte[] node_info = (byte[]) compactInfoList.get(i);
 				address = getIp(node_info);
 				port = getPort(node_info);
-
+				Send find node with new info
 			}
 		}
 		/*
@@ -286,14 +285,16 @@ public class UDP_Request {
 		System.out.println("EXIT FIND_NODE");
 	}
 
+	// Note that each node has 26 bytes: 20 for id, 4 for ip, and 2 for port
 	private void addCompactInfo(byte[] nodes) {
-		if ((nodes.length % 6) != 0) {
-			System.out.println("nodes compact info has wrong length: " + nodes.length);
+		if ((nodes.length % 26) != 0) {
+			System.out.println("nodes compact info has wrong length: "
+					+ nodes.length);
 		}
-		for (int i = 0; i < nodes.length;) {
-			int j = i + 6;
+		for (int i = 20; i < nodes.length;) {
+			int j = i + 26;
 			compactInfoList.add(Arrays.copyOfRange(nodes, i, j));
-			i = j + 1;
+			i = j;
 		}
 		System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
 	}
@@ -325,7 +326,7 @@ public class UDP_Request {
 			// The nodes array is 416 characters long
 			nodes = (byte[]) r.get("nodes");
 
-			byte[] first_node = Arrays.copyOfRange(nodes, 0, 6);
+			byte[] first_node = Arrays.copyOfRange(nodes, 0, 26);
 			address = getIp(first_node);
 			port = getPort(first_node);
 
