@@ -3,6 +3,7 @@ package DHT;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -63,15 +64,21 @@ public class MLinkToTorrent {
 	}
 
 	public static void main(String argv[]) throws Exception {
+		String bootstrap_addr_str = "67.215.242.138";// "router.bittorrent.com";
+		int bootstrap_port = 6881;
+		String id = "abcdefghij0123456789";
+		InetAddress address = InetAddress.getByName(bootstrap_addr_str);
+		//int port = bootstrap_port;
+		
 		// Later input ml as command line argument
 		String ml = "magnet:?xt=urn:btih:9d99e5402c95a5967f3cd360a1d7f4e4da1b6a07&dn=Games+Of+Thrones+Season+1&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker.ccc.de%3A80&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
 		UDP_Request req = new UDP_Request();
 		MLinkToTorrent mlt = new MLinkToTorrent();
-		req.sendPing();
+		req.sendPing(address, bootstrap_port, id);
 		// req.sendFindNode();
 		mlt.parseMagnetLink(ml);
-		req.sendFindNode();
-		//req.get_peers(info_hash);
+		req.sendFindNode(address, bootstrap_port, id);
+		//req.get_peers(info_hash, address, bootstrap_port, id);
 		// mlt.createTorrentFile();
 
 	}

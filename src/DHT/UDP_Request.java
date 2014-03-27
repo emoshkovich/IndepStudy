@@ -38,6 +38,8 @@ class MessageThread extends Thread {
 		byte[] response_to_ping_b = new byte[UDP_Request.PACKET_SIZE];
 		DatagramPacket dp_send = new DatagramPacket(send_packet,
 				send_packet.length, ip, port);
+		System.out
+		.println("send message to ip:   "+ ip + "     to port: " + port);
 		try {
 			socket.send(dp_send);
 			socket.setSoTimeout(1000);
@@ -52,9 +54,9 @@ class MessageThread extends Thread {
 		try {
 			socket.receive(dp_receive);
 		} catch (SocketTimeoutException e) {
-			System.out.println("GOT TO EXCEPTION " + socket.isClosed());
+			//System.out.println("GOT TO EXCEPTION " + socket.isClosed());
 			socket.close();
-			System.out.println("AFTER EXCEPTION " + socket.isClosed());
+			//System.out.println("AFTER EXCEPTION " + socket.isClosed());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -63,14 +65,14 @@ class MessageThread extends Thread {
 			if (socket != null && !socket.isClosed()) {
 				socket.close();
 			}
-
-			System.out.println("Socket was closed: " + socket.isClosed());
 			notify();
 		}
 
-		System.out.println("received packet length: " + dp_receive.getLength());
+		//System.out.println("received packet length: " + dp_receive.getData().length);
 
 		decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
+		
+		System.out.println("decoded_reply: " + decoded_reply.size());
 	}
 
 	public Map getDecodedReply() {
@@ -85,9 +87,10 @@ class MessageThread extends Thread {
 public class UDP_Request {
 	public final static int PACKET_SIZE = 512;
 
-	private String bootstrap_addr_str = "67.215.242.138";// "router.bittorrent.com";
-	private int bootstrap_port = 6881;
-	private String id = "abcdefghij0123456789";
+	//private String bootstrap_addr_str = "67.215.242.138";// "router.bittorrent.com";
+	//private int bootstrap_port = 6881;
+	//private String id = "abcdefghij0123456789";
+	
 	// private InetAddress bootstrap_addr;
 	private DatagramSocket socket;
 
@@ -100,7 +103,7 @@ public class UDP_Request {
 	private static ArrayList compactInfoList = new ArrayList();
 	private Bencoder benc = new Bencoder();
 
-	public void sendPing() throws Exception {
+	public void sendPing(InetAddress ip, int port, String id) throws Exception {
 		// tcpRequestResponse("", InetAddress.getByName("bittorrent.com"),
 		// 6881);
 		String ping_s = "d1:ad2:id20:abcdefghij0123456789e1:q4:ping1:t4:aaaa1:y1:qe";
@@ -126,11 +129,11 @@ public class UDP_Request {
 		 * System.out.println("DECODED: " + decoded_reply);
 		 */
 
-		InetAddress bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
-		LinkedHashMap decoded_reply2 = udpRequestResponse(ping_s.getBytes(),
-				bootstrap_addr, bootstrap_port);
-		System.out.println(decoded_reply2);
-		byte[] ip_and_port_bytes = (byte[]) decoded_reply2.get("ip");
+		//InetAddress bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
+		LinkedHashMap decoded_reply = udpRequestResponse(ping_s.getBytes(),
+				ip, port);
+		System.out.println(decoded_reply);
+		byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
 
 		getIp(ip_and_port_bytes);
 		getPort(ip_and_port_bytes);
@@ -140,9 +143,7 @@ public class UDP_Request {
 		byte[] ip_bytes = Arrays.copyOfRange(compactInfo, 0, 4);
 		System.out
 				.println("returned ip: " + InetAddress.getByAddress(ip_bytes));
-		byte[] b = { (byte) 01011111, (byte) 10000110, (byte) 01011100,
-				(byte) 11011000 };
-		// System.out.println("CHECK: " + InetAddress.getByAddress(b));
+		
 		return InetAddress.getByAddress(ip_bytes);
 	}
 
@@ -168,13 +169,13 @@ public class UDP_Request {
 		th.start();
 		synchronized (th) {
 			try {
-				System.out.println("Waiting for th to complete...");
+				//System.out.println("Waiting for th to complete...");
 				th.wait();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
-		System.out.println("Exited synchronized(th)");
+		//System.out.println("Exited synchronized(th)");
 
 		return (LinkedHashMap) ((MessageThread) th).getDecodedReply();
 	}
@@ -228,9 +229,9 @@ public class UDP_Request {
 		in.close();
 	}
 
-	public void sendFindNode() throws Exception {
+	public void sendFindNode(InetAddress ip, int port, String id) throws Exception {
 		System.out.println("ENTER FIND_NODE");
-		InetAddress bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
+		//InetAddress bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
 		args.put(benc.bencodeString("target"), benc.bencodeString(id));
@@ -244,10 +245,9 @@ public class UDP_Request {
 		String s = new String(send_packet);
 		System.out.println("find_node packet: " + s);
 		byte[] nodes = null;
-		InetAddress address = InetAddress.getByName(bootstrap_addr_str);
-		int port = bootstrap_port;
+		
 
-		Map decoded_reply = udpRequestResponse(send_packet, address, port);
+		Map decoded_reply = udpRequestResponse(send_packet, ip, port);
 
 		System.out.println("DECODED find_node: " + decoded_reply);
 		if (decoded_reply.isEmpty()) {
@@ -262,9 +262,10 @@ public class UDP_Request {
 				System.out.println(i);
 
 				byte[] node_info = (byte[]) compactInfoList.get(i);
-				address = getIp(node_info);
+				ip = getIp(node_info);
 				port = getPort(node_info);
-				Send find node with new info
+				//Send find node with new info
+				sendFindNode(ip, port, id);
 			}
 		}
 		/*
@@ -299,7 +300,7 @@ public class UDP_Request {
 		System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
 	}
 
-	public byte[] get_peers(String info_hash) throws Exception {
+	public byte[] get_peers(String info_hash, InetAddress ip, int port, String id) throws Exception {
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
 		args.put(benc.bencodeString("info_hash"), benc.bencodeString(info_hash));
@@ -313,12 +314,12 @@ public class UDP_Request {
 		String s = new String(send_packet);
 		System.out.println("get_peers packet: " + s);
 		byte[] nodes = null;
-		InetAddress address = InetAddress.getByName(bootstrap_addr_str);
-		int port = bootstrap_port;
+		//InetAddress address = InetAddress.getByName(bootstrap_addr_str);
+		//int port = bootstrap_port;
 
 		for (int i = 0; i < 100; i++) {
 			System.out.println(i);
-			Map decoded_reply = udpRequestResponse(send_packet, address, port);
+			Map decoded_reply = udpRequestResponse(send_packet, ip, port);
 
 			System.out.println("DECODED getPeers: " + decoded_reply);
 			Map r = (LinkedHashMap) decoded_reply.get("r");
@@ -327,7 +328,7 @@ public class UDP_Request {
 			nodes = (byte[]) r.get("nodes");
 
 			byte[] first_node = Arrays.copyOfRange(nodes, 0, 26);
-			address = getIp(first_node);
+			ip = getIp(first_node);
 			port = getPort(first_node);
 
 			// handShake(address, port, info_hash, id);
