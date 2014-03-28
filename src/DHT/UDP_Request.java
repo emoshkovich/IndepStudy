@@ -26,6 +26,10 @@ class MessageThread extends Thread {
 	}
 
 	public synchronized void run() {
+		if (port < 0 || port > 65535){
+			System.out.println("ERROR: wrong port number");
+			return;
+		}
 		System.out.println(Thread.currentThread().getName());
 		// Send the message and receive the response
 		DatagramSocket socket = null;
@@ -148,14 +152,23 @@ public class UDP_Request {
 	}
 
 	private int getPort(byte[] compactInfo) throws UnknownHostException {
+	//	byte[] port_bytes = Arrays.copyOfRange(compactInfo, compactInfo.length-2, compactInfo.length);
 		byte[] port_bytes = Arrays.copyOfRange(compactInfo, 4, 6);
 		short[] shorts = new short[1];
 		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN)
 				.asShortBuffer().get(shorts);
 		short signed_port = shorts[0];
 		Integer port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
-
-		System.out.println("returned port: " + port);
+		System.out.println("PORT: "+ port + " unsigned port: " + shorts[0]);
+		
+		 port = 0;
+    	port |= compactInfo[compactInfo.length-2] & 0xFF;
+    	System.out.println("port1: " + port);
+    	port <<= 8;
+    	System.out.println("port2: " + port);
+    	port |= compactInfo[compactInfo.length-1] & 0xFF;
+    	System.out.println("port3: " + port);
+    	System.out.println("PORT: "+ port + "  " + compactInfo[compactInfo.length-2] + " " + compactInfo[compactInfo.length-1]);
 		return port;
 	}
 
@@ -268,6 +281,7 @@ public class UDP_Request {
 				sendFindNode(ip, port, id);
 			}
 		}
+		System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
 		/*
 		 * String fn_s =
 		 * "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe"
@@ -297,7 +311,7 @@ public class UDP_Request {
 			compactInfoList.add(Arrays.copyOfRange(nodes, i, j));
 			i = j;
 		}
-		System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
+		//System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
 	}
 
 	public byte[] get_peers(String info_hash, InetAddress ip, int port, String id) throws Exception {
