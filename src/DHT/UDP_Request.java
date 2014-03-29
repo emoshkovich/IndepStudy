@@ -152,23 +152,26 @@ public class UDP_Request {
 	}
 
 	private int getPort(byte[] compactInfo) throws UnknownHostException {
-	//	byte[] port_bytes = Arrays.copyOfRange(compactInfo, compactInfo.length-2, compactInfo.length);
-		byte[] port_bytes = Arrays.copyOfRange(compactInfo, 4, 6);
+		byte[] port_bytes = Arrays.copyOfRange(compactInfo, compactInfo.length-2, compactInfo.length);
+		//byte[] port_bytes = Arrays.copyOfRange(compactInfo, 4, 6);
 		short[] shorts = new short[1];
 		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN)
 				.asShortBuffer().get(shorts);
 		short signed_port = shorts[0];
-		Integer port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
-		System.out.println("PORT: "+ port + " unsigned port: " + shorts[0]);
+		int port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
+		System.out.println("PORT1: "+ port + " unsigned port: " + shorts[0]);
 		
-		 port = 0;
+		/*port = 0;
+    	short s =  (short)((compactInfo[compactInfo.length-2]<<8) | (compactInfo[compactInfo.length-1]));
+    	port = s;
+    	System.out.println("PORT2: "+ port );
+    	*/
+		port = 0;
     	port |= compactInfo[compactInfo.length-2] & 0xFF;
-    	System.out.println("port1: " + port);
     	port <<= 8;
-    	System.out.println("port2: " + port);
     	port |= compactInfo[compactInfo.length-1] & 0xFF;
-    	System.out.println("port3: " + port);
-    	System.out.println("PORT: "+ port + "  " + compactInfo[compactInfo.length-2] + " " + compactInfo[compactInfo.length-1]);
+    	System.out.println("PORT3: "+ port + "  " + compactInfo[compactInfo.length-2] + " " + compactInfo[compactInfo.length-1]);
+    	
 		return port;
 	}
 
