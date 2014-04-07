@@ -104,7 +104,9 @@ public class UDP_Request {
 	private int port;
 	// private Map decoded_reply;
 
-	private static ArrayList compactInfoList = new ArrayList();
+	private static ArrayList findNodeCompactInfoList = new ArrayList();
+	private static ArrayList getPeersCompactInfoList = new ArrayList();
+	
 	private Bencoder benc = new Bencoder();
 
 	public void sendPing(InetAddress ip, int port, String id) throws Exception {
@@ -152,26 +154,24 @@ public class UDP_Request {
 	}
 
 	private int getPort(byte[] compactInfo) throws UnknownHostException {
-		byte[] port_bytes = Arrays.copyOfRange(compactInfo, compactInfo.length-2, compactInfo.length);
-		//byte[] port_bytes = Arrays.copyOfRange(compactInfo, 4, 6);
+	//	byte[] port_bytes = Arrays.copyOfRange(compactInfo, compactInfo.length-2, compactInfo.length);
+		byte[] port_bytes = Arrays.copyOfRange(compactInfo, 4, 6);
 		short[] shorts = new short[1];
-		ByteBuffer.wrap(port_bytes).order(ByteOrder.LITTLE_ENDIAN)
+		ByteBuffer.wrap(port_bytes).order(ByteOrder.BIG_ENDIAN)
 				.asShortBuffer().get(shorts);
 		short signed_port = shorts[0];
-		int port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
-		System.out.println("PORT1: "+ port + " unsigned port: " + shorts[0]);
+		Integer port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
+		System.out.println("PORT: "+ port + " unsigned port: " + shorts[0]);
 		
-		/*port = 0;
-    	short s =  (short)((compactInfo[compactInfo.length-2]<<8) | (compactInfo[compactInfo.length-1]));
-    	port = s;
-    	System.out.println("PORT2: "+ port );
-    	*/
-		port = 0;
+		/* port = 0;
     	port |= compactInfo[compactInfo.length-2] & 0xFF;
+    	System.out.println("port1: " + port);
     	port <<= 8;
+    	System.out.println("port2: " + port);
     	port |= compactInfo[compactInfo.length-1] & 0xFF;
-    	System.out.println("PORT3: "+ port + "  " + compactInfo[compactInfo.length-2] + " " + compactInfo[compactInfo.length-1]);
-    	
+    	System.out.println("port3: " + port);
+    	System.out.println("PORT: "+ port + "  " + compactInfo[compactInfo.length-2] + " " + compactInfo[compactInfo.length-1]);
+    	*/
 		return port;
 	}
 
@@ -245,7 +245,7 @@ public class UDP_Request {
 		in.close();
 	}
 
-	public void sendFindNode(InetAddress ip, int port, String id) throws Exception {
+	public void findNode(InetAddress ip, int port, String id) throws Exception {
 		System.out.println("ENTER FIND_NODE");
 		//InetAddress bootstrap_addr = InetAddress.getByName(bootstrap_addr_str);
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
@@ -273,18 +273,18 @@ public class UDP_Request {
 			Map r = (LinkedHashMap) decoded_reply.get("r");
 			// The nodes array is 416 characters long
 			nodes = (byte[]) r.get("nodes");
-			addCompactInfo(nodes);
-			for (int i = 0; i < compactInfoList.size(); i++) {
+			addCompactInfo(nodes, findNodeCompactInfoList);
+			for (int i = 0; i < findNodeCompactInfoList.size(); i++) {
 				System.out.println(i);
 
-				byte[] node_info = (byte[]) compactInfoList.get(i);
+				byte[] node_info = (byte[]) findNodeCompactInfoList.get(i);
 				ip = getIp(node_info);
 				port = getPort(node_info);
 				//Send find node with new info
-				sendFindNode(ip, port, id);
+				findNode(ip, port, id);
 			}
 		}
-		System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
+		System.out.println("SIZE OF THE ARRAY LIST: " + findNodeCompactInfoList.size());
 		/*
 		 * String fn_s =
 		 * "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe"
@@ -304,20 +304,20 @@ public class UDP_Request {
 	}
 
 	// Note that each node has 26 bytes: 20 for id, 4 for ip, and 2 for port
-	private void addCompactInfo(byte[] nodes) {
+	private void addCompactInfo(byte[] nodes, ArrayList al) {
 		if ((nodes.length % 26) != 0) {
 			System.out.println("nodes compact info has wrong length: "
 					+ nodes.length);
 		}
 		for (int i = 20; i < nodes.length;) {
 			int j = i + 26;
-			compactInfoList.add(Arrays.copyOfRange(nodes, i, j));
+			al.add(Arrays.copyOfRange(nodes, i, j));
 			i = j;
 		}
 		//System.out.println("SIZE OF THE ARRAY LIST: " + compactInfoList.size());
 	}
 
-	public byte[] get_peers(String info_hash, InetAddress ip, int port, String id) throws Exception {
+	public byte[] getPeers(String info_hash, InetAddress ip, int port, String id) throws Exception {
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
 		args.put(benc.bencodeString("info_hash"), benc.bencodeString(info_hash));

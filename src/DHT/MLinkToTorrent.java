@@ -77,7 +77,7 @@ public class MLinkToTorrent {
 		req.sendPing(address, bootstrap_port, id);
 		// req.sendFindNode();
 		mlt.parseMagnetLink(ml);
-		req.sendFindNode(address, bootstrap_port, id);
+		req.findNode(address, bootstrap_port, id);
 		//req.get_peers(info_hash, address, bootstrap_port, id);
 		// mlt.createTorrentFile();
 
