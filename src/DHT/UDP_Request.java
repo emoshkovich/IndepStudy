@@ -10,7 +10,9 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 class MessageThread extends Thread {
 	private Bencoder benc = new Bencoder();
@@ -102,10 +104,12 @@ public class UDP_Request {
 
 	private static ArrayList findNodeCompactInfoList = new ArrayList();
 	private static ArrayList getPeersCompactInfoList = new ArrayList();
+	private int peerCounter;
 
 	private Bencoder benc = new Bencoder();
 
-	public void sendPing(InetAddress ip, int port, String id) throws Exception {
+	public LinkedHashMap sendPing(InetAddress ip, int port, String id)
+			throws Exception {
 		// tcpRequestResponse("", InetAddress.getByName("bittorrent.com"),
 		// 6881);
 		String ping_s = "d1:ad2:id20:abcdefghij0123456789e1:q4:ping1:t4:aaaa1:y1:qe";
@@ -113,10 +117,13 @@ public class UDP_Request {
 		LinkedHashMap decoded_reply = udpRequestResponse(ping_s.getBytes(), ip,
 				port);
 		System.out.println("Ping reply: " + decoded_reply);
-		byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
+		if (decoded_reply != null && !decoded_reply.isEmpty()) { // Do I really need this?
+			byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
 
-		getIp(ip_and_port_bytes);
-		getPort(ip_and_port_bytes);
+			// getIp(ip_and_port_bytes);
+			// getPort(ip_and_port_bytes);
+		}
+		return decoded_reply;
 	}
 
 	private InetAddress getIp(byte[] compactInfo) throws UnknownHostException {
@@ -133,7 +140,6 @@ public class UDP_Request {
 				.get(shorts);
 		short signed_port = shorts[0];
 		Integer port = signed_port >= 0 ? signed_port : 0x10000 + signed_port;
-		System.out.println("PORT: " + port);
 
 		return port;
 	}
@@ -178,7 +184,7 @@ public class UDP_Request {
 
 	public void handShake(InetAddress ip, int port, String info_hash, String id)
 			throws IOException {
-		System.out.println("tcp: ip: " + ip + ", port: " + port);
+		System.out.println("handshake: ip: " + ip + ", port: " + port);
 		Socket socket = new Socket(ip, port);
 
 		System.out.println("last thing that worked");
@@ -196,10 +202,10 @@ public class UDP_Request {
 		// Receive the message
 		BufferedReader in = new BufferedReader(new InputStreamReader(
 				socket.getInputStream()));
-		System.out.print("Received string: ");
 
 		while (!in.ready()) {
 		}
+		System.out.print("Received string: ");
 		System.out.println(in.readLine()); // Read one line and output it
 
 		System.out.print("'\n");
@@ -274,8 +280,8 @@ public class UDP_Request {
 		String s = new String(send_packet);
 		System.out.println("get_peers packet: " + s);
 		byte[] nodes = null;
-		byte[] values = null;
-		
+		Vector values = null;
+
 		// InetAddress address = InetAddress.getByName(bootstrap_addr_str);
 		// int port = bootstrap_port;
 
@@ -283,27 +289,53 @@ public class UDP_Request {
 
 		System.out.println("DECODED getPeers: " + decoded_reply);
 
-		if (!decoded_reply.isEmpty()) {
+		if (decoded_reply != null && !decoded_reply.isEmpty()) {
 			Map r = (LinkedHashMap) decoded_reply.get("r");
-			values = (byte[]) r.get("values");
-			
-			if (values != null){
-				System.out.println("VALUES NOT NULL: "+ values);
+			if (r == null) {
+				return null;
 			}
-			System.out.println("VALUES: "+ values);
-			
-			nodes = (byte[]) r.get("nodes");
-			addCompactInfo(nodes, getPeersCompactInfoList);
-			for (int i = 0; i < getPeersCompactInfoList.size(); i++) {
-				byte[] node_info = (byte[]) getPeersCompactInfoList.get(i);
-				ip = getIp(node_info);
-				port = getPort(node_info);
+			values = (Vector) r.get("values");
 
-				// Send get peers request with new info
-				getPeers(info_hash, ip, port, id);
+			if (values != null) {
+				System.out.println("VALUES NOT NULL: "
+						+ values.getClass().getName());
+				// ArrayList peersList = new ArrayList();
+				// for (int i = 0; i < value)
+				InetAddress peer_ip = getIp((byte[]) (values).firstElement());
+				int peer_port = getPort((byte[]) (values).firstElement());
+				LinkedHashMap ping_reply = sendPing(peer_ip, peer_port, id);
+				System.out.println("VALUES ALIST: ip: " + peer_ip + " port: "
+						+ peer_port);
+				if (!ping_reply.isEmpty()) {
+					handShake(peer_ip, peer_port, info_hash, id);
+					System.out.println("array length: "
+							+ ((byte[]) values.firstElement()).length);
+				}
+			} else {
+				// Possibly put this in else statement
+				nodes = (byte[]) r.get("nodes");
+				addCompactInfo(nodes, getPeersCompactInfoList);
+				while (peerCounter < getPeersCompactInfoList.size()) {
+					System.out.println("peerCounter: " + peerCounter);
+					byte[] node_info = (byte[]) getPeersCompactInfoList
+							.get(peerCounter);
+					InetAddress node_ip = getIp(node_info);
+					int node_port = getPort(node_info);
+					peerCounter++;
+					// Send get peers request with new info
+					getPeers(info_hash, node_ip, node_port, id);
+				}
 			}
 		}
 		// handShake(address, port, info_hash, id);
 		return nodes;
+	}
+	
+	public void announcePeers(String id, int implied_port, String info_hash, int port, String token){
+		
+	}
+	
+	private void populateHashMap(){
+		
 	}
 }
