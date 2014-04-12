@@ -325,6 +325,10 @@ public class UDP_Request {
 					// Send get peers request with new info
 					getPeers(info_hash, node_ip, node_port, id);
 				}
+				if (peerCounter == getPeersCompactInfoList.size()){
+					System.out.println("Resumed getPeers");
+					getPeers(info_hash, ip, port, id);
+				}
 			}
 		}
 		// handShake(address, port, info_hash, id);
