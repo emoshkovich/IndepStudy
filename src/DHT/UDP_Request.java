@@ -38,7 +38,6 @@ class MessageThread extends Thread {
 		try {
 			socket = new DatagramSocket();
 		} catch (SocketException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		byte[] response_to_ping_b = new byte[UDP_Request.PACKET_SIZE];
@@ -49,9 +48,8 @@ class MessageThread extends Thread {
 		try {
 			socket.send(dp_send);
 			socket.setSoTimeout(1000);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("socket timed out");
 		}
 
 		// Receiving the message
@@ -71,9 +69,10 @@ class MessageThread extends Thread {
 			}
 			notify();
 		}
-
-		decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
-
+		if (dp_receive.getLength() != 0) {
+			System.out.println(dp_receive.getLength());
+			decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
+		}
 	}
 
 	public Map getDecodedReply() {
@@ -117,7 +116,9 @@ public class UDP_Request {
 		LinkedHashMap decoded_reply = udpRequestResponse(ping_s.getBytes(), ip,
 				port);
 		System.out.println("Ping reply: " + decoded_reply);
-		if (decoded_reply != null && !decoded_reply.isEmpty()) { // Do I really need this?
+		if (decoded_reply != null && !decoded_reply.isEmpty()) { // Do I really
+																	// need
+																	// this?
 			byte[] ip_and_port_bytes = (byte[]) decoded_reply.get("ip");
 
 			// getIp(ip_and_port_bytes);
@@ -182,34 +183,44 @@ public class UDP_Request {
 	 * System.out.print("'\n"); in.close(); return null; }
 	 */
 
-	public void handShake(InetAddress ip, int port, String info_hash, String id)
-			throws IOException {
+	public void handShake(InetAddress ip, int port, String info_hash, String id) {
 		System.out.println("handshake: ip: " + ip + ", port: " + port);
-		Socket socket = new Socket(ip, port);
+		Socket socket = null;
+		try {
+			socket = new Socket(ip, port);
+			socket.setSoTimeout(60000);
+		} catch (IOException e) {
+			System.out.println("Socket connection not established");
+			return;
+		}
 
-		System.out.println("last thing that worked");
 		// Send the message
-		DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-		if (socket != null) {
-			dos.writeByte(19);
-			dos.writeBytes("BitTorrent protocol");// possibly need write()
-													// instead of writeBytes()
-			dos.write(new byte[8]);
-			dos.writeBytes(info_hash);
-			dos.writeBytes(id);
+		DataOutputStream dos = null;
+			try {
+				dos = new DataOutputStream(socket.getOutputStream());
+				dos.writeByte(19);
+				dos.writeBytes("BitTorrent protocol");// possibly need write()
+				// instead of writeBytes()
+				dos.write(new byte[8]);
+				dos.writeBytes(info_hash);
+				dos.writeBytes(id);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		try {
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					socket.getInputStream()));
+
+			System.out.println("Waiting for received string: ");
+			while (!in.ready()) {
+			}
+			System.out.print("Received string: ");
+			System.out.println(in.readLine());
+			System.out.print("'\n");
+			in.close();
+		} catch (IOException e) {
+			System.out.println("Read Timeout");
 		}
-
-		// Receive the message
-		BufferedReader in = new BufferedReader(new InputStreamReader(
-				socket.getInputStream()));
-
-		while (!in.ready()) {
-		}
-		System.out.print("Received string: ");
-		System.out.println(in.readLine()); // Read one line and output it
-
-		System.out.print("'\n");
-		in.close();
 	}
 
 	public void findNode(InetAddress ip, int port, String id) throws Exception {
@@ -297,26 +308,13 @@ public class UDP_Request {
 			values = (Vector) r.get("values");
 
 			if (values != null) {
-				System.out.println("VALUES NOT NULL: "
-						+ values.getClass().getName());
-				// ArrayList peersList = new ArrayList();
-				// for (int i = 0; i < value)
-				InetAddress peer_ip = getIp((byte[]) (values).firstElement());
-				int peer_port = getPort((byte[]) (values).firstElement());
-				LinkedHashMap ping_reply = sendPing(peer_ip, peer_port, id);
-				System.out.println("VALUES ALIST: ip: " + peer_ip + " port: "
-						+ peer_port);
-				if (!ping_reply.isEmpty()) {
-					handShake(peer_ip, peer_port, info_hash, id);
-					System.out.println("array length: "
-							+ ((byte[]) values.firstElement()).length);
-				}
+				System.out.println("Length of values Vector: " + values.size());
+				contactPeers(values, info_hash, id);
 			} else {
 				// Possibly put this in else statement
 				nodes = (byte[]) r.get("nodes");
 				addCompactInfo(nodes, getPeersCompactInfoList);
 				while (peerCounter < getPeersCompactInfoList.size()) {
-					System.out.println("peerCounter: " + peerCounter);
 					byte[] node_info = (byte[]) getPeersCompactInfoList
 							.get(peerCounter);
 					InetAddress node_ip = getIp(node_info);
@@ -325,7 +323,7 @@ public class UDP_Request {
 					// Send get peers request with new info
 					getPeers(info_hash, node_ip, node_port, id);
 				}
-				if (peerCounter == getPeersCompactInfoList.size()){
+				if (peerCounter == getPeersCompactInfoList.size()) {
 					System.out.println("Resumed getPeers");
 					getPeers(info_hash, ip, port, id);
 				}
@@ -334,12 +332,30 @@ public class UDP_Request {
 		// handShake(address, port, info_hash, id);
 		return nodes;
 	}
-	
-	public void announcePeers(String id, int implied_port, String info_hash, int port, String token){
-		
+
+	private void contactPeers(Vector values, String info_hash, String id)
+			throws Exception {
+		for (int i = 0; i < values.size(); i++) {
+			byte[] peer = (byte[]) values.elementAt(i);
+			InetAddress peer_ip = getIp(peer);
+			int peer_port = getPort(peer);
+			LinkedHashMap ping_reply = sendPing(peer_ip, peer_port, id);
+			System.out.println("VALUES ALIST: ip: " + peer_ip + " port: "
+					+ peer_port);
+			if (!ping_reply.isEmpty()) {
+				handShake(peer_ip, peer_port, info_hash, id);
+				System.out.println("array length: "
+						+ ((byte[]) values.firstElement()).length);
+			}
+		}
 	}
-	
-	private void populateHashMap(){
-		
+
+	public void announcePeers(String id, int implied_port, String info_hash,
+			int port, String token) {
+
+	}
+
+	private void populateHashMap() {
+
 	}
 }
