@@ -69,8 +69,7 @@ class MessageThread extends Thread {
 			}
 			notify();
 		}
-		if (dp_receive.getLength() != 0) {
-			System.out.println(dp_receive.getLength());
+		if (dp_receive.getData()[0] != 0) {
 			decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
 		}
 	}
@@ -196,30 +195,96 @@ public class UDP_Request {
 
 		// Send the message
 		DataOutputStream dos = null;
-			try {
-				dos = new DataOutputStream(socket.getOutputStream());
-				dos.writeByte(19);
-				dos.writeBytes("BitTorrent protocol");// possibly need write()
-				// instead of writeBytes()
-				dos.write(new byte[8]);
-				dos.writeBytes(info_hash);
-				dos.writeBytes(id);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		try {
+			dos = new DataOutputStream(socket.getOutputStream());
+			dos.writeByte(19);
+			dos.writeBytes("BitTorrent protocol");
+			dos.write(new byte[8]);
+			dos.writeBytes(info_hash);
+			dos.writeBytes(id);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		try {
 			BufferedReader in = new BufferedReader(new InputStreamReader(
 					socket.getInputStream()));
 
 			System.out.println("Waiting for received string: ");
 			while (!in.ready()) {
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 			System.out.print("Received string: ");
-			System.out.println(in.readLine());
-			System.out.print("'\n");
+			String hs_response = in.readLine();
+			System.out.println(hs_response);
 			in.close();
+			if (hs_response != null
+					&& hs_response.contains("BitTorrent protocol")) {
+				System.out.println("Correct Response!");
+				requestPieces(ip, port);
+			}
+			// }
 		} catch (IOException e) {
 			System.out.println("Read Timeout");
+		}
+	}
+
+	private void requestPieces(InetAddress ip, int port) {
+		// extension header
+		Map<byte[], byte[]> send_eh = new LinkedHashMap<byte[], byte[]>();
+		Map<byte[], byte[]> m = new LinkedHashMap<byte[], byte[]>();
+		m.put(benc.bencodeString("ut_metadata"), benc.bencodeInteger(3));
+		send_eh.put(benc.bencodeString("m"), benc.bencodeDictionary(m));
+		
+		// extension message
+		Map<byte[], byte[]> send_em = new LinkedHashMap<byte[], byte[]>();
+		send_em.put(benc.bencodeString("msg_type"), benc.bencodeInteger(0));
+		send_em.put(benc.bencodeString("piece"), benc.bencodeInteger(0));
+		
+		byte[] send_packet_eh = benc.bencodeDictionary(send_eh);
+		byte[] send_packet_em = benc.bencodeDictionary(send_em);
+		System.out.println("requestPieces packets: " + new String(send_packet_eh) + " " + new String(send_packet_em));
+		
+		Socket socket = null;
+		try {
+			socket = new Socket(ip, port);
+			socket.setSoTimeout(60000);
+		} catch (IOException e) {
+			System.out
+					.println("Socket connection not established in requestPieces");
+			return;
+		}
+
+		// Send the message
+		DataOutputStream dos = null;
+		try {
+			dos = new DataOutputStream(socket.getOutputStream());
+			dos.writeBytes(new String(send_packet_eh));
+			dos.writeBytes(new String(send_packet_em));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					socket.getInputStream()));
+
+			System.out.println("requestPieces. Waiting for received string: ");
+			while (!in.ready()) {
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			System.out.print("requestPieces. Received string: ");
+			String rp_response = in.readLine();
+			System.out.println(rp_response);
+			in.close();
+		} catch (IOException e) {
+			System.out.println("requestPieces. Read Timeout");
 		}
 	}
 
@@ -244,7 +309,7 @@ public class UDP_Request {
 
 		System.out.println("DECODED find_node: " + decoded_reply);
 
-		if (!decoded_reply.isEmpty()) {
+		if (decoded_reply != null && !decoded_reply.isEmpty()) {
 			Map r = (LinkedHashMap) decoded_reply.get("r");
 			// The nodes array is 416 characters long
 			nodes = (byte[]) r.get("nodes");
@@ -329,7 +394,6 @@ public class UDP_Request {
 				}
 			}
 		}
-		// handShake(address, port, info_hash, id);
 		return nodes;
 	}
 
@@ -342,7 +406,7 @@ public class UDP_Request {
 			LinkedHashMap ping_reply = sendPing(peer_ip, peer_port, id);
 			System.out.println("VALUES ALIST: ip: " + peer_ip + " port: "
 					+ peer_port);
-			if (!ping_reply.isEmpty()) {
+			if (ping_reply != null && !ping_reply.isEmpty()) {
 				handShake(peer_ip, peer_port, info_hash, id);
 				System.out.println("array length: "
 						+ ((byte[]) values.firstElement()).length);
