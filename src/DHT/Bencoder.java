@@ -156,7 +156,7 @@ public class Bencoder {
 		StringBuffer temp_string = new StringBuffer();
 
 		// Determine the length of the integer representing the String's length.
-		while (input[temp_index] != (byte) ':') {
+		while (temp_index < input.length && input[temp_index] != (byte) ':') {
 			if (first_digit) {
 				power_of_ten *= 10;
 			}
