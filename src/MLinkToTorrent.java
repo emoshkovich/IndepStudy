@@ -1,4 +1,5 @@
-package DHT;
+
+
 
 import java.io.File;
 import java.io.IOException;
@@ -13,10 +14,10 @@ public class MLinkToTorrent {
 	// Torrent file extension
 	private String tf_extension = ".torrent";
 	private static String info_hash;
-	private UDP_Request request;
+	private Messages request;
 
 	public MLinkToTorrent() {
-		request = new UDP_Request();
+		request = new Messages();
 	}
 
 	private void parseMagnetLink(String ml) throws UnsupportedEncodingException {
@@ -72,7 +73,7 @@ public class MLinkToTorrent {
 		
 		// Later input ml as command line argument
 		String ml = "magnet:?xt=urn:btih:9d99e5402c95a5967f3cd360a1d7f4e4da1b6a07&dn=Games+Of+Thrones+Season+1&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker.ccc.de%3A80&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		UDP_Request req = new UDP_Request();
+		Messages req = new Messages();
 		MLinkToTorrent mlt = new MLinkToTorrent();
 		//req.sendPing(address, bootstrap_port, id);
 		// req.sendFindNode();

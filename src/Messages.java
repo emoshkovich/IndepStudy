@@ -1,8 +1,9 @@
-package DHT;
+
 
 /* NOTES:
  * BitTorrent client will normally use ports 6881 to 6889.
  */
+
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -40,7 +41,7 @@ class MessageThread extends Thread {
 		} catch (SocketException e) {
 			e.printStackTrace();
 		}
-		byte[] response_to_ping_b = new byte[UDP_Request.PACKET_SIZE];
+		byte[] response_to_ping_b = new byte[Messages.PACKET_SIZE];
 		DatagramPacket dp_send = new DatagramPacket(send_packet,
 				send_packet.length, ip, port);
 		System.out.println("send message to ip:   " + ip + "     to port: "
@@ -83,7 +84,7 @@ class MessageThread extends Thread {
 /**
  * This class
  */
-public class UDP_Request {
+public class Messages {
 	public final static int PACKET_SIZE = 512;
 
 	// private String bootstrap_addr_str = "67.215.242.138";//
@@ -210,13 +211,13 @@ public class UDP_Request {
 					socket.getInputStream()));
 
 			System.out.println("Waiting for received string: ");
-			while (!in.ready()) {
+			/*while (!in.ready()) {
 				try {
 					Thread.sleep(500);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-			}
+			}*/
 			System.out.print("Received string: ");
 			String hs_response = in.readLine();
 			System.out.println(hs_response);
