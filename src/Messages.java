@@ -1,5 +1,4 @@
 
-
 /* NOTES:
  * BitTorrent client will normally use ports 6881 to 6889.
  */
@@ -15,25 +14,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-class MessageThread extends Thread {
+class Udp {
 	private Bencoder benc = new Bencoder();
 	private byte[] send_packet;
 	private InetAddress ip;
 	private int port;
 	private Map decoded_reply;
 
-	public MessageThread(byte[] send_packet, InetAddress ip, int port) {
+	public Udp(byte[] send_packet, InetAddress ip, int port) {
 		this.send_packet = send_packet;
 		this.ip = ip;
 		this.port = port;
 	}
 
-	public synchronized void run() {
+	//public synchronized void run() {
+	  public void run() {
 		if (port < 0 || port > 65535) {
 			System.out.println("ERROR: wrong port number");
 			return;
 		}
-		System.out.println(Thread.currentThread().getName());
+		//System.out.println(Thread.currentThread().getName());
 		// Send the message and receive the response
 		DatagramSocket socket = null;
 		try {
@@ -48,7 +48,7 @@ class MessageThread extends Thread {
 				+ port);
 		try {
 			socket.send(dp_send);
-			socket.setSoTimeout(1000);
+			socket.setSoTimeout(500);
 		} catch (Exception e) {
 			System.out.println("socket timed out");
 		}
@@ -68,7 +68,7 @@ class MessageThread extends Thread {
 			if (socket != null && !socket.isClosed()) {
 				socket.close();
 			}
-			notify();
+			//notify();
 		}
 		if (dp_receive.getData()[0] != 0) {
 			decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
@@ -85,7 +85,7 @@ class MessageThread extends Thread {
  * This class
  */
 public class Messages {
-	public final static int PACKET_SIZE = 512;
+	public final static int PACKET_SIZE = 1024;
 
 	// private String bootstrap_addr_str = "67.215.242.138";//
 	// "router.bittorrent.com";
@@ -151,17 +151,19 @@ public class Messages {
 		this.ip = ip;
 		this.port = port;
 
-		Thread th = new MessageThread(send_packet, ip, port);
-		th.start();
-		synchronized (th) {
+		//Thread th = new MessageThread(send_packet, ip, port);
+		Udp th = new Udp(send_packet, ip, port);
+		//th.start();
+		th.run();
+		/*synchronized (th) {
 			try {
 				th.wait();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-		}
+		}*/
 
-		return (LinkedHashMap) ((MessageThread) th).getDecodedReply();
+		return (LinkedHashMap) ((Udp) th).getDecodedReply();
 	}
 
 	/*
@@ -211,15 +213,20 @@ public class Messages {
 					socket.getInputStream()));
 
 			System.out.println("Waiting for received string: ");
-			/*while (!in.ready()) {
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+			String hs_response = null;
+			for (int i = 0; i < 10; i++) {
+				if ((hs_response = in.readLine()) == null) {
+					System.out.println("Waiting for received string: " + i);
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
-			}*/
+				else {System.out.println("about to break " + hs_response);break;}
+			}
 			System.out.print("Received string: ");
-			String hs_response = in.readLine();
+			//hs_response = in.readLine();
 			System.out.println(hs_response);
 			in.close();
 			if (hs_response != null
@@ -239,16 +246,18 @@ public class Messages {
 		Map<byte[], byte[]> m = new LinkedHashMap<byte[], byte[]>();
 		m.put(benc.bencodeString("ut_metadata"), benc.bencodeInteger(3));
 		send_eh.put(benc.bencodeString("m"), benc.bencodeDictionary(m));
-		
+
 		// extension message
 		Map<byte[], byte[]> send_em = new LinkedHashMap<byte[], byte[]>();
 		send_em.put(benc.bencodeString("msg_type"), benc.bencodeInteger(0));
 		send_em.put(benc.bencodeString("piece"), benc.bencodeInteger(0));
-		
+
 		byte[] send_packet_eh = benc.bencodeDictionary(send_eh);
 		byte[] send_packet_em = benc.bencodeDictionary(send_em);
-		System.out.println("requestPieces packets: " + new String(send_packet_eh) + " " + new String(send_packet_em));
-		
+		System.out
+				.println("requestPieces packets: " + new String(send_packet_eh)
+						+ " " + new String(send_packet_em));
+
 		Socket socket = null;
 		try {
 			socket = new Socket(ip, port);
@@ -268,20 +277,22 @@ public class Messages {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		BufferedReader in;
 		try {
-			BufferedReader in = new BufferedReader(new InputStreamReader(
+			in = new BufferedReader(new InputStreamReader(
 					socket.getInputStream()));
 
 			System.out.println("requestPieces. Waiting for received string: ");
-			while (!in.ready()) {
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+			String rp_response;
+			// while (!in.ready()) {
+			while ((rp_response = in.readLine()) == null) {
+				/*
+				 * try { Thread.sleep(500); } catch (InterruptedException e) {
+				 * e.printStackTrace(); }
+				 */
 			}
 			System.out.print("requestPieces. Received string: ");
-			String rp_response = in.readLine();
+			// String rp_response = in.readLine();
 			System.out.println(rp_response);
 			in.close();
 		} catch (IOException e) {
@@ -344,6 +355,7 @@ public class Messages {
 
 	public byte[] getPeers(String info_hash, InetAddress ip, int port, String id)
 			throws Exception {
+		System.out.println("peerCounter: " + peerCounter);
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
 		args.put(benc.bencodeString("info_hash"), benc.bencodeString(info_hash));
@@ -409,15 +421,8 @@ public class Messages {
 					+ peer_port);
 			if (ping_reply != null && !ping_reply.isEmpty()) {
 				handShake(peer_ip, peer_port, info_hash, id);
-				System.out.println("array length: "
-						+ ((byte[]) values.firstElement()).length);
 			}
 		}
-	}
-
-	public void announcePeers(String id, int implied_port, String info_hash,
-			int port, String token) {
-
 	}
 
 	private void populateHashMap() {
