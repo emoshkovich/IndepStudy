@@ -228,11 +228,11 @@ public class Messages {
 			System.out.print("Received string: ");
 			//hs_response = in.readLine();
 			System.out.println(hs_response);
-			in.close();
+			//in.close();
 			if (hs_response != null
 					&& hs_response.contains("BitTorrent protocol")) {
 				System.out.println("Correct Response!");
-				requestPieces(ip, port);
+				requestPieces(ip, port, socket);
 			}
 			// }
 		} catch (IOException e) {
@@ -240,7 +240,7 @@ public class Messages {
 		}
 	}
 
-	private void requestPieces(InetAddress ip, int port) {
+	private void requestPieces(InetAddress ip, int port, Socket socket) {
 		// extension header
 		Map<byte[], byte[]> send_eh = new LinkedHashMap<byte[], byte[]>();
 		Map<byte[], byte[]> m = new LinkedHashMap<byte[], byte[]>();
@@ -258,7 +258,7 @@ public class Messages {
 				.println("requestPieces packets: " + new String(send_packet_eh)
 						+ " " + new String(send_packet_em));
 
-		Socket socket = null;
+		/*Socket socket = null;
 		try {
 			socket = new Socket(ip, port);
 			socket.setSoTimeout(60000);
@@ -266,7 +266,7 @@ public class Messages {
 			System.out
 					.println("Socket connection not established in requestPieces");
 			return;
-		}
+		}*/
 
 		// Send the message
 		DataOutputStream dos = null;
