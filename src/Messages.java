@@ -205,6 +205,7 @@ public class Messages {
 			dos.write(new byte[8]);
 			dos.writeBytes(info_hash);
 			dos.writeBytes(id);
+			dos.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -274,6 +275,7 @@ public class Messages {
 			dos = new DataOutputStream(socket.getOutputStream());
 			dos.writeBytes(new String(send_packet_eh));
 			dos.writeBytes(new String(send_packet_em));
+			dos.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -283,18 +285,29 @@ public class Messages {
 					socket.getInputStream()));
 
 			System.out.println("requestPieces. Waiting for received string: ");
-			String rp_response;
+			String rp_response = null;
 			// while (!in.ready()) {
-			while ((rp_response = in.readLine()) == null) {
-				/*
+			/*while ((rp_response = in.readLine()) == null) {
+				
 				 * try { Thread.sleep(500); } catch (InterruptedException e) {
 				 * e.printStackTrace(); }
-				 */
+				 
+			}*/
+			for (int i = 0; i < 10; i++) {
+				if ((rp_response = in.readLine()) == null) {
+					System.out.println("requestPieces. Waiting for received string: " + i);
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				else {System.out.println("requestPieces. Received string " + rp_response);break;}
 			}
-			System.out.print("requestPieces. Received string: ");
+			//System.out.print("requestPieces. Received string: ");
 			// String rp_response = in.readLine();
-			System.out.println(rp_response);
-			in.close();
+			//System.out.println(rp_response);
+			//in.close();
 		} catch (IOException e) {
 			System.out.println("requestPieces. Read Timeout");
 		}
