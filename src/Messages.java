@@ -215,16 +215,16 @@ public class Messages {
 
 			System.out.println("Waiting for received string: ");
 			String hs_response = null;
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 3; i++) {
 				if ((hs_response = in.readLine()) == null) {
 					System.out.println("Waiting for received string: " + i);
 					try {
-						Thread.sleep(1000);
+						Thread.sleep(1);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
 				}
-				else {System.out.println("about to break " + hs_response);break;}
+				else {break;}
 			}
 			System.out.print("Received string: ");
 			//hs_response = in.readLine();
@@ -232,7 +232,6 @@ public class Messages {
 			//in.close();
 			if (hs_response != null
 					&& hs_response.contains("BitTorrent protocol")) {
-				System.out.println("Correct Response!");
 				requestPieces(ip, port, socket);
 			}
 			// }
@@ -259,22 +258,12 @@ public class Messages {
 				.println("requestPieces packets: " + new String(send_packet_eh)
 						+ " " + new String(send_packet_em));
 
-		/*Socket socket = null;
-		try {
-			socket = new Socket(ip, port);
-			socket.setSoTimeout(60000);
-		} catch (IOException e) {
-			System.out
-					.println("Socket connection not established in requestPieces");
-			return;
-		}*/
-
 		// Send the message
 		DataOutputStream dos = null;
 		try {
 			dos = new DataOutputStream(socket.getOutputStream());
 			dos.writeBytes(new String(send_packet_eh));
-			dos.writeBytes(new String(send_packet_em));
+			//dos.writeBytes(new String(send_packet_em));
 			dos.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -293,16 +282,18 @@ public class Messages {
 				 * e.printStackTrace(); }
 				 
 			}*/
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 1; i++) {
 				if ((rp_response = in.readLine()) == null) {
 					System.out.println("requestPieces. Waiting for received string: " + i);
 					try {
-						Thread.sleep(1000);
+						Thread.sleep(1);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
 				}
-				else {System.out.println("requestPieces. Received string " + rp_response);break;}
+				else {System.out.println("requestPieces. Received string " + rp_response);
+				System.out.println("requestPieces decoded: " + benc.unbencodeDictionary(rp_response.getBytes()));
+				break;}
 			}
 			//System.out.print("requestPieces. Received string: ");
 			// String rp_response = in.readLine();
