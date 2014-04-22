@@ -202,7 +202,9 @@ public class Messages {
 			dos = new DataOutputStream(socket.getOutputStream());
 			dos.writeByte(19);
 			dos.writeBytes("BitTorrent protocol");
-			dos.write(new byte[8]);
+			byte[] reserved = new byte[8];
+			reserved[5] = 0x10;
+			dos.write(reserved);
 			dos.writeBytes(info_hash);
 			dos.writeBytes(id);
 			dos.flush();
@@ -239,31 +241,39 @@ public class Messages {
 			System.out.println("Read Timeout");
 		}
 	}
-
-	private void requestPieces(InetAddress ip, int port, Socket socket) {
+	
+	private void sendExtensionHeader(DataOutputStream dos){
 		// extension header
 		Map<byte[], byte[]> send_eh = new LinkedHashMap<byte[], byte[]>();
 		Map<byte[], byte[]> m = new LinkedHashMap<byte[], byte[]>();
 		m.put(benc.bencodeString("ut_metadata"), benc.bencodeInteger(3));
 		send_eh.put(benc.bencodeString("m"), benc.bencodeDictionary(m));
+		byte[] send_packet_eh = benc.bencodeDictionary(send_eh);
+		
+		// send the messages
+		try {
+			dos.writeBytes(new String(send_packet_eh));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
+	private void requestPieces(InetAddress ip, int port, Socket socket) {
 		// extension message
 		Map<byte[], byte[]> send_em = new LinkedHashMap<byte[], byte[]>();
 		send_em.put(benc.bencodeString("msg_type"), benc.bencodeInteger(0));
 		send_em.put(benc.bencodeString("piece"), benc.bencodeInteger(0));
-
-		byte[] send_packet_eh = benc.bencodeDictionary(send_eh);
 		byte[] send_packet_em = benc.bencodeDictionary(send_em);
 		System.out
-				.println("requestPieces packets: " + new String(send_packet_eh)
+				.println("requestPieces packets: "
 						+ " " + new String(send_packet_em));
 
 		// Send the message
 		DataOutputStream dos = null;
 		try {
 			dos = new DataOutputStream(socket.getOutputStream());
-			dos.writeBytes(new String(send_packet_eh));
-			//dos.writeBytes(new String(send_packet_em));
+			//sendExtensionHeader(dos);
+			dos.writeBytes(new String(send_packet_em));
 			dos.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
