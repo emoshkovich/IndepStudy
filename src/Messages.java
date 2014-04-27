@@ -84,7 +84,9 @@ class Udp {
  * This class
  */
 public class Messages {
-	public final static int PACKET_SIZE = 2048;
+	public final static int PACKET_SIZE = 4096;
+	private int blockSize = 16384;
+	private int reqPieceResponseMessageSize;
 
 	// private String bootstrap_addr_str = "67.215.242.138";//
 	// "router.bittorrent.com";
@@ -92,7 +94,7 @@ public class Messages {
 	// private String id = "abcdefghij0123456789";
 
 	// private InetAddress bootstrap_addr;
-	private DatagramSocket socket;
+	// private DatagramSocket socket;
 
 	// UDP requests parameters data
 	private byte[] send_packet;
@@ -192,10 +194,10 @@ public class Messages {
 		}
 		String hs_response = null;
 		try {
-			BufferedReader in = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
+			DataInputStream in = new DataInputStream(socket.getInputStream());
+			//Thread.sleep(1000);
 			System.out.println("Waiting for received string: ");
-			char[] ca = new char[10000];
+			byte[] ca = new byte[20000];
 			in.read(ca, 0, ca.length);
 			hs_response = new String(ca);
 		} catch (IOException e) {
@@ -212,7 +214,7 @@ public class Messages {
 			int ut = findUtMetadataCode(hs_response);
 			System.out.println("ut code: " + ut);
 			if (metadataSize > 0 && ut > 0) {
-				requestPieces(socket, ut);
+				getMetadata(socket, ut);
 			} // else if (metadataSize < 0) { // try sending the message again
 				// handShake(ip, port, info_hash, id);
 				// }
@@ -221,7 +223,8 @@ public class Messages {
 	}
 
 	private int findMetadataSize(String hs_response) {
-		// gets substring starting at metadata_size, and then from that substring
+		// gets substring starting at metadata_size, and then from that
+		// substring
 		// returns the first substring between i and e
 		String mtSize = "metadata_size";
 		int ix = hs_response.indexOf(mtSize);
@@ -277,11 +280,35 @@ public class Messages {
 		}
 	}
 
-	private void requestPieces(Socket socket, int ut) {
+	// possibly do it in the other class
+	public String getMetadata(Socket socket, int ut) {
+		String metadata = "";
+		int numPieces = (int) Math.ceil((double) metadataSize / blockSize);
+		int prefixLen = 0;
+		System.out.println("numPieces: " + numPieces);
+		char[] metaInfo = new char[metadataSize];
+
+		for (int i = 0; i < numPieces; i++) {
+			requestPiece(socket, ut, i);
+			String piece = receivePiece(socket);
+			if (piece == null){
+				break;
+			}
+			if (i == 0){
+				prefixLen = reqPieceResponseMessageSize - blockSize;
+			}
+			System.out.println("Piece number index: " + i + " prefixLen: " + prefixLen);
+			metadata += piece.substring(prefixLen);
+		}
+		System.out.println("METADATA: " + metadata);
+		return metadata;
+	}
+
+	private void requestPiece(Socket socket, int ut, int pieceIx) {
 		// extension message
 		Map<byte[], byte[]> send_em = new LinkedHashMap<byte[], byte[]>();
 		send_em.put(benc.bencodeString("msg_type"), benc.bencodeInteger(0));
-		send_em.put(benc.bencodeString("piece"), benc.bencodeInteger(0));
+		send_em.put(benc.bencodeString("piece"), benc.bencodeInteger(pieceIx));
 		byte[] send_packet_em = benc.bencodeDictionary(send_em);
 		System.out.println("requestPieces packets: " + " "
 				+ new String(send_packet_em));
@@ -298,25 +325,49 @@ public class Messages {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		BufferedReader in;
+	}
+
+	private String receivePiece(Socket socket) {
+		DataInputStream in;
+		String piece = null;
 		try {
-			in = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
+			in = new DataInputStream(socket.getInputStream());
 
 			System.out.println("requestPieces. Waiting for received string: ");
-			String rp_response = null;
 
 			System.out.print("requestPieces. Received string: ");
 			// String rp_response = in.readLine();
-			char[] ca = new char[10000];
-			in.read(ca, 0, 10000);
-			rp_response = new String(ca);
-			System.out.println(rp_response);
+
+			reqPieceResponseMessageSize = getInputLength(in);
+			byte[] ch = new byte[reqPieceResponseMessageSize];
+			
+			//byte[] ch = new byte[16435];
+			in.readFully(ch, 0, ch.length);
+			
+			//byte[] ch = new byte[50000];
+			//int numRead = in.read(ch, 0, ch.length);
+			//System.out.println("Number of characters read: " + numRead);
+			piece = new String(ch);
+			System.out.println(piece);
 
 			// in.close();
 		} catch (IOException e) {
-			System.out.println("requestPieces. Read Timeout");
+			System.out.println("receivePieces. Read Timeout");
 		}
+		return piece;
+	}
+
+	// The length of the tcp string to be read in bytes
+	private int getInputLength(DataInputStream in) {
+		int numRead = 0;
+		try {
+			numRead = in.readInt();
+			System.out.println("numRead: " + numRead);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return numRead;
 	}
 
 	public void findNode(InetAddress ip, int port, String id) throws Exception {
