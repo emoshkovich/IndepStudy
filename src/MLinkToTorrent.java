@@ -14,14 +14,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Vector;
 
+/*
+ * Class that converts magnet link to a torrent file. 
+ * Retrieves info hash from the magnet link, and uses 
+ * it to send messages to nodes and peers to retrieve 
+ * the information that will be put into the torrent file
+ */
 public class MLinkToTorrent {
 	private static String id = "abcdefghij0123456789";
 
 	public final int INFO_HASH_CH_NUM = 40;
 	private int blockSize = 16384;
-	// private int reqPieceResponseMessageSize;
-
-	// Torrent file extension
 	private String tf_extension = ".torrent";
 	private static String info_hash_hex;
 	private static String info_hash;
@@ -34,18 +37,20 @@ public class MLinkToTorrent {
 	}
 
 	private void parseMagnetLink(String ml) throws UnsupportedEncodingException {
-		System.out.println(ml);
+		// System.out.println(ml);
 		// Magnet link identifier
 		String ml_identifier = "magnet:";
 
 		// Bittorrent info hash identifier
 		String btih = "?xt=urn:btih:";
 
+		// Retrieve the info hash from the magnet link
 		String mlink = ml.substring(ml_identifier.length() + btih.length());
 		info_hash_hex = mlink.substring(0, INFO_HASH_CH_NUM);
 		info_hash = hexToString(info_hash_hex);
 	}
 
+	// Converts hexadecimal to String
 	private String hexToString(String hexStr)
 			throws UnsupportedEncodingException {
 		StringBuilder sb = new StringBuilder();
@@ -57,20 +62,22 @@ public class MLinkToTorrent {
 		return sb.toString();
 	}
 
-	//
+	// Gets the metadata of the file, to be put into the torrent file. Does so
+	// by calling requestPiece and receivePiece, for each piece.
 	public String getMetadata(Socket socket, InetAddress ip, int port) {
 
 		String metadata = "";
 		int metadataSize = request.getMetadataSize();
 		int ut = request.getUtMetadataCode();
-		// int reqPieceResponseMessageSize =
-		// request.getReqPieceResponseMessageSize();
-		System.out.println("metadataSize and ut: " + metadataSize + " " + ut);
+		// System.out.println("metadataSize and ut: " + metadataSize + " " +
+		// ut);
 		if (metadataSize > 0 && ut > 0) {
+			// Calculate the number of pieces
 			int numPieces = (int) Math.ceil((double) metadataSize / blockSize);
 			int prefixLen = 0;
-			System.out.println("numPieces: " + numPieces);
+			// System.out.println("numPieces: " + numPieces);
 
+			// Get data of each piece
 			for (int i = 0; i < numPieces; i++) {
 				request.requestPiece(socket, ut, i);
 				String piece = request.receivePiece(socket);
@@ -78,28 +85,36 @@ public class MLinkToTorrent {
 					break;
 				}
 				if (i == 0 && numPieces > 1) {
-					System.out.println("reqPieceResponseMessageSize: "
-							+ request.reqPieceResponseMessageSize);
+					// System.out.println("reqPieceResponseMessageSize: " +
+					// request.reqPieceResponseMessageSize);
 					prefixLen = request.reqPieceResponseMessageSize - blockSize;
 				} else if (i == 0) {
 					prefixLen = piece.indexOf("ee") + 2;
 				}
-				System.out.println("Piece number index: " + i + " prefixLen: "
-						+ prefixLen);
+				// System.out.println("Piece number index: " + i +
+				// " prefixLen: " + prefixLen);
 				metadata += piece.substring(prefixLen);
 			}
 		}
-		System.out.println("METADATA: " + metadata);
+		// System.out.println("METADATA: " + metadata);
 		return metadata;
 	}
 
+	// Add compact information of the nodes to the array list. This info is
+	// taken from the array list to send getPeers messages until a peer that
+	// contains the needed torrent file (based on the info hash) is found
 	private void addCompactInfo(byte[] nodes) {
 		if (nodes == null) {
 			return;
 		}
+
+		// The nodes message should contain compact info of several nodes. Each
+		// nodes compact info should be 26-bytes long. If it is not the case,
+		// return
 		if ((nodes.length % 26) != 0) {
-			System.out.println("nodes compact info has wrong length: "
-					+ nodes.length);
+			// System.out.println("nodes compact info has wrong length: "
+			// + nodes.length);
+			return;
 		}
 		for (int i = 20; i < nodes.length;) {
 			int j = i + 26;
@@ -108,6 +123,9 @@ public class MLinkToTorrent {
 		}
 	}
 
+	// If response to the getPeers message contains "values" key, send ping to
+	// ip/port of each peer, to make sure they are online. Otherwise, add nodes
+	// compact info to the arraylist
 	public byte[] decodePeer(Map decoded_reply) throws Exception {
 		byte[] nodes = null;
 		Map r = (LinkedHashMap) decoded_reply.get("r");
@@ -117,7 +135,7 @@ public class MLinkToTorrent {
 		Vector values = (Vector) r.get("values");
 		if (values != null) {
 			byte[] peer = contactPeers(values, info_hash, id);
-			System.out.println("values not null: " + values.size());
+			// System.out.println("values not null: " + values.size());
 		} else {
 			nodes = (byte[]) r.get("nodes");
 			addCompactInfo(nodes);
@@ -125,10 +143,8 @@ public class MLinkToTorrent {
 		return nodes;
 	}
 
-	/**
-	 * Create a torrent file and put it into the home directory
-	 */
-	private void createTorrentFile(String metadata) {
+	// Creates a torrent file and puts it into the home directory
+	public void createTorrentFile(String metadata) {
 		String fileName = info_hash_hex.toUpperCase();
 		File f = new File(fileName + tf_extension);
 		try {
@@ -138,17 +154,19 @@ public class MLinkToTorrent {
 		}
 		PrintWriter writer = null;
 		try {
-			System.out.println(fileName);
+			// System.out.println(fileName);
 			writer = new PrintWriter(fileName + tf_extension);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		writer.println("d4:info");
+		writer.print("d4:info");
 		writer.println(metadata);
 		writer.close();
 	}
 
-	public byte[] contactPeers(Vector<byte[]> values, String info_hash,
+	// sends ping to ip/port of each peer store in "values", to make sure they
+	// are online.
+	private byte[] contactPeers(Vector<byte[]> values, String info_hash,
 			String id) throws Exception {
 		for (int i = 0; i < values.size(); i++) {
 			byte[] peer = (byte[]) values.elementAt(i);
@@ -162,6 +180,7 @@ public class MLinkToTorrent {
 		return null;
 	}
 
+	// Calculates sha1 of a string (in this case of the metadata)
 	private static String sha1(String toEncrypt) {
 		String sha1 = "";
 		try {
@@ -175,6 +194,7 @@ public class MLinkToTorrent {
 		return sha1;
 	}
 
+	// Converts bytes to hexadecimal
 	private static String byteToHex(final byte[] hash) {
 		Formatter formatter = new Formatter();
 		for (byte b : hash) {
@@ -187,19 +207,10 @@ public class MLinkToTorrent {
 
 	public static void main(String argv[]) throws Exception {
 		// Later input ml as command line argument
-		//String ml = "magnet:?xt=urn:btih:9d99e5402c95a5967f3cd360a1d7f4e4da1b6a07&dn=Games+Of+Thrones+Season+1&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker.ccc.de%3A80&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//String ml = "magnet:?xt=urn:btih:915930f68f841aacd6dac60869bc5ca65c121f54&dn=Electric+Power+Substations+Engineering%2C+Third+Edition&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		 //String ml = "magnet:?xt=urn:btih:f62c9f1a05a9e31d1c7363c52b0bca25104b05af&dn=It+Began+With+Babbage+-+The+Genesis+Of+Computer+Science+%282013%29+B&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		 //String ml = "magnet:?xt=urn:btih:4a990b48a6517e95ca8346481ba8a9ba03fe322e&dn=Computer+Science+-+An+Overview+%2C11th+Edition%7BBBS%7D&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		 //String ml = "magnet:?xt=urn:btih:61a10ba7c0cb33501ffaae9693e2f690429384c7&dn=The+Art+and+Science+of+Java.An+Introduction+To+Computer+Science%5B&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		 String ml = "magnet:?xt=urn:btih:ebee8a025a6d8a2ac802cb21bfdedafd63d48734&dn=MIT+-+Mathematics+For+Computer+Science&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		// String ml =
-		// "magnet:?xt=urn:btih:b58a43aa5ebe5475159ffc259b7e2ede815d90ff&dn=Computer+Science+Programming+Basics+in+Ruby&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		// String ml =
-		// "magnet:?xt=urn:btih:8a4241c9ee8d14568f0534389cc59c7313912289&dn=Computer+Science+-+An+Overview+%289th+Edition%29&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		// String ml =
-		// "magnet:?xt=urn:btih:be3e31357e30c2c6835c70bd5efb5c9189482df7&dn=Tutsplus+-++Intro+To+Computer+Science+Programming+With+Java+201+&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-
+		if (argv.length == 0) {
+			System.err.println("Please enter the magnet link");
+			return;
+		}
 		Messages req = new Messages();
 		ArrayList getPeersCompactInfoList = new ArrayList();
 		MLinkToTorrent mlt = new MLinkToTorrent(getPeersCompactInfoList);
@@ -212,12 +223,11 @@ public class MLinkToTorrent {
 		int node_port = 0;
 		byte[] peer = null;
 		try {
-			mlt.parseMagnetLink(ml);
+			mlt.parseMagnetLink(argv[0]);
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
 		}
 		String metadata = "";
-		mlt.createTorrentFile("wrote to the file");
 		// request a peer from "router.bittorrent.com"
 		Map decoded_reply = req.getPeers(info_hash, bootstrap_ip,
 				bootstrap_port, id);
@@ -226,19 +236,19 @@ public class MLinkToTorrent {
 		}
 
 		String sha1 = "";
+		// Repeat until get the correct torrent file
 		while (!sha1.equals(info_hash_hex)) {
-			// while (peer == null) {
 			Vector<byte[]> values = null;
-			// Should it be an if or a while loop?
+			// As long as there are more nodes compact info, send getPeers
+			// message
 			while (peerCounter < getPeersCompactInfoList.size()) {
 				byte[] node_info = (byte[]) getPeersCompactInfoList
 						.get(peerCounter);
-				System.out.println("peerCounter: " + peerCounter
-						+ " ArrayList size: " + getPeersCompactInfoList.size());
+				// System.out.println("peerCounter: " + peerCounter
+				// + " ArrayList size: " + getPeersCompactInfoList.size());
 				node_ip = req.getIp(node_info);
 				node_port = req.getPort(node_info);
 				peerCounter++;
-
 				decoded_reply = req.getPeers(info_hash, node_ip, node_port, id);
 				if (decoded_reply != null && !decoded_reply.isEmpty()) {
 					mlt.decodePeer(decoded_reply);
@@ -246,17 +256,21 @@ public class MLinkToTorrent {
 					if (r == null) {
 						continue;
 					}
+
+					// Send ping messages to the peers
 					values = (Vector) r.get("values");
 					if (values != null) {
 						peer = mlt.contactPeers(values, info_hash, id);
-						System.out.println("values not null: " + values.size());
-						if (peer != null) {
-							System.out.println("peer not null!!!");
+						// System.out.println("values not null: " +
+						// values.size());
+						if (peer != null) {// Peer responded to the ping
 							InetAddress peer_ip = req.getIp(peer);
 							int peer_port = req.getPort(peer);
 
 							Socket socket = null;
 							try {
+								// Send handshake to the peer and if it
+								// responds, request metadata
 								socket = new Socket(peer_ip, peer_port);
 								socket.setSoTimeout(60000);
 								if (req.handShake(socket, peer_ip, peer_port,
@@ -267,21 +281,24 @@ public class MLinkToTorrent {
 										break;
 								}
 							} catch (IOException e) {
-								System.out
-										.println("Socket connection not established");
+								// System.out.println("Socket connection not established");
 							}
-						}// Somewhere a peer counter is not incremented.
+						}
 					}
 				}
 			}
+			// If there are no more nodes, send the message to bootstrap
+			// address/port
 			if (peerCounter == getPeersCompactInfoList.size()) {
 				decoded_reply = req.getPeers(info_hash, bootstrap_ip,
 						bootstrap_port, id);
 			}
-			if (metadata.equals("")){
+			if (metadata.equals("")) {
 				continue;
 			}
+			// Create torrent file with the metadata
 			mlt.createTorrentFile(metadata);
+			// Check if sha1 matches the info hash
 			sha1 = sha1(metadata);
 			System.out.println("The sha1 of torrent file: " + sha1);
 		}

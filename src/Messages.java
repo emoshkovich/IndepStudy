@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Vector;
 
+// A udp message
 class Udp {
 	private Bencoder benc = new Bencoder();
 	private byte[] send_packet;
@@ -20,14 +21,11 @@ class Udp {
 		this.port = port;
 	}
 
-	// public synchronized void run() {
 	public void run() {
 		if (port < 0 || port > 65535) {
-			System.out.println("ERROR: wrong port number");
+			// System.out.println("ERROR: wrong port number");
 			return;
 		}
-		// System.out.println(Thread.currentThread().getName());
-		// Send the message and receive the response
 		DatagramSocket socket = null;
 		try {
 			socket = new DatagramSocket();
@@ -37,13 +35,14 @@ class Udp {
 		byte[] response_to_ping_b = new byte[Messages.PACKET_SIZE];
 		DatagramPacket dp_send = new DatagramPacket(send_packet,
 				send_packet.length, ip, port);
-		System.out.println("send message to ip:   " + ip + "     to port: "
-				+ port);
+		// System.out.println("send message to ip:   " + ip + "     to port: "
+		// + port);
 		try {
 			socket.send(dp_send);
 			socket.setSoTimeout(500);
 		} catch (Exception e) {
-			System.out.println("socket timed out");
+			// System.out.println("socket timed out");
+			socket.close();
 		}
 
 		// Receiving the message
@@ -61,7 +60,6 @@ class Udp {
 			if (socket != null && !socket.isClosed()) {
 				socket.close();
 			}
-			// notify();
 		}
 		if (dp_receive.getData()[0] != 0) {
 			decoded_reply = benc.unbencodeDictionary(dp_receive.getData());
@@ -75,7 +73,8 @@ class Udp {
 }
 
 /**
- * This class
+ * This class contains the messages sent to the nodes and peers, and receives
+ * messages from them
  */
 public class Messages {
 	public final static int PACKET_SIZE = 65535;
@@ -90,6 +89,7 @@ public class Messages {
 
 	private Bencoder benc = new Bencoder();
 
+	// Send the ping message to a node or a peer (dht protocol)
 	public LinkedHashMap sendPing(InetAddress ip, int port, String id)
 			throws Exception {
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
@@ -106,11 +106,15 @@ public class Messages {
 		return decoded_reply;
 	}
 
+	// Retrieves ip from compact info of a node (obtained in response to
+	// getPeers message)
 	public InetAddress getIp(byte[] compactInfo) throws UnknownHostException {
 		byte[] ip_bytes = Arrays.copyOfRange(compactInfo, 0, 4);
 		return InetAddress.getByAddress(ip_bytes);
 	}
 
+	// Retrieves port from compact info of a node (obtained in response to
+	// getPeers message)
 	public int getPort(byte[] compactInfo) throws UnknownHostException {
 		byte[] port_bytes = Arrays.copyOfRange(compactInfo, 4, 6);
 		short[] shorts = new short[1];
@@ -122,18 +126,22 @@ public class Messages {
 		return port;
 	}
 
+	// Sends a udp message to a node or peer, and the returns response
 	private LinkedHashMap udpRequestResponse(byte[] send_packet,
 			InetAddress ip, int port) throws IOException {
 		this.send_packet = send_packet;
 		this.ip = ip;
 		this.port = port;
-		
+
 		Udp th = new Udp(send_packet, ip, port);
-		
+
 		th.run();
 		return (LinkedHashMap) ((Udp) th).getDecodedReply();
 	}
 
+	// The initial handshake that establishes bittorrent connection between
+	// peers. Both sends and receives a message. Returns true if the response
+	// contains metadata size, and supports ut_metadata, and false otherwise
 	public boolean handShake(Socket socket, InetAddress ip, int port,
 			String info_hash, String id) {
 		// Send the message
@@ -151,29 +159,26 @@ public class Messages {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		// Receive the message
 		String hs_response = null;
 		try {
 			DataInputStream in = new DataInputStream(socket.getInputStream());
-			System.out.println("Waiting for received string: ");
+			// System.out.println("Waiting for received string: ");
 			byte[] ca = new byte[20000];
 			Thread.sleep(1000);
 			in.read(ca, 0, ca.length);
 			hs_response = new String(ca);
 		} catch (IOException e) {
-			System.out.println("Read Timeout");
+			// System.out.println("Read Timeout");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		System.out.print("Received string: ");
-		System.out.println(hs_response);
+		// System.out.print("Received string: ");
+		// System.out.println(hs_response);
 		if (hs_response != null) {
 			setMetadataSize(findMetadataSize(hs_response));
-			System.out.println("Metadata Size: " + metadataSize);
-
 			setUtMetadataCode(findUtMetadataCode(hs_response));
-			System.out.println("ut code: " + utMetadataCode);
 			if (metadataSize > 0 && utMetadataCode > 0) {
 				return true;
 			}
@@ -181,31 +186,34 @@ public class Messages {
 		return false;
 	}
 
-	public void setMetadataSize(int metadataSize){
+	public void setMetadataSize(int metadataSize) {
 		this.metadataSize = metadataSize;
 	}
+
 	public int getMetadataSize() {
 		return metadataSize;
 	}
 
-	public void setUtMetadataCode(int utMetadataCode){
+	public void setUtMetadataCode(int utMetadataCode) {
 		this.utMetadataCode = utMetadataCode;
 	}
+
 	public int getUtMetadataCode() {
 		return utMetadataCode;
 	}
-	
-	public void setReqPieceResponseMessageSize(int reqPieceResponseMessageSize){
+
+	public void setReqPieceResponseMessageSize(int reqPieceResponseMessageSize) {
 		this.reqPieceResponseMessageSize = reqPieceResponseMessageSize;
 	}
-	public int getReqPieceResponseMessageSize(){
+
+	public int getReqPieceResponseMessageSize() {
 		return reqPieceResponseMessageSize;
 	}
 
+	// Obtains total size of the metadata, from the handshake response
 	private int findMetadataSize(String hs_response) {
 		// gets substring starting at metadata_size, and then from that
-		// substring
-		// returns the first substring between i and e
+		// substring returns the first substring between i and e
 		String mtSize = "metadata_size";
 		int ix = hs_response.indexOf(mtSize);
 		if (ix > 0) {
@@ -219,7 +227,11 @@ public class Messages {
 		return metadataSize;
 	}
 
+	// Obtains the code number assigned to ut_metadata, from the handshake
+	// response
 	private int findUtMetadataCode(String hs_response) {
+		// gets substring starting at ut_metadata, and then from that
+		// substring returns the first substring between i and e
 		String utM = "ut_metadata";
 		int ix = hs_response.indexOf(utM);
 		if (ix > 0) {
@@ -233,6 +245,8 @@ public class Messages {
 		return utMetadataCode;
 	}
 
+	// Sends the extension header message, which needs to be sent before any
+	// extension message
 	private void sendExtensionHeader(DataOutputStream dos) {
 		// extension header
 		Map<byte[], byte[]> send_eh = new LinkedHashMap<byte[], byte[]>();
@@ -240,8 +254,8 @@ public class Messages {
 		m.put(benc.bencodeString("ut_metadata"), benc.bencodeInteger(2));
 		send_eh.put(benc.bencodeString("m"), benc.bencodeDictionary(m));
 		byte[] send_packet_eh = benc.bencodeDictionary(send_eh);
-		System.out.println("length of extension header: "
-				+ send_packet_eh.length);
+		//System.out.println("length of extension header: "
+		//		+ send_packet_eh.length);
 		// send the messages
 		try {
 			sendPrMessage(dos, send_packet_eh.length, 0);
@@ -251,7 +265,7 @@ public class Messages {
 		}
 	}
 
-	// The prefix message, attached to the beginning to any bittorrent message
+	// The prefix message, attached to the beginning of any bittorrent message
 	private void sendPrMessage(DataOutputStream dos, int msglen, int ut) {
 		try {
 			dos.writeInt(msglen + 2);
@@ -262,14 +276,14 @@ public class Messages {
 		}
 	}
 
+	// Requests a piece of the metadata
 	public void requestPiece(Socket socket, int ut, int pieceIx) {
-		// extension message
 		Map<byte[], byte[]> send_em = new LinkedHashMap<byte[], byte[]>();
 		send_em.put(benc.bencodeString("msg_type"), benc.bencodeInteger(0));
 		send_em.put(benc.bencodeString("piece"), benc.bencodeInteger(pieceIx));
 		byte[] send_packet_em = benc.bencodeDictionary(send_em);
-		System.out.println("requestPieces packets: " + " "
-				+ new String(send_packet_em));
+		// System.out.println("requestPieces packets: " + " " + new
+		// String(send_packet_em));
 
 		// Send the message
 		DataOutputStream dos = null;
@@ -284,42 +298,31 @@ public class Messages {
 		}
 	}
 
+	// Receives a piece of the metadata and returns it
 	public String receivePiece(Socket socket) {
 		DataInputStream in;
 		String piece = null;
 		try {
 			in = new DataInputStream(socket.getInputStream());
-
-			System.out.println("requestPieces. Waiting for received string: ");
-
-			System.out.print("requestPieces. Received string: ");
-
 			setReqPieceResponseMessageSize(getInputLength(in));
 			byte[] ch = new byte[reqPieceResponseMessageSize];
-			System.out.println("reqPieceResponseMessageSize in Messages: "+ reqPieceResponseMessageSize);
-
-			// byte[] ch = new byte[16435];
+			// System.out.println("reqPieceResponseMessageSize in Messages: " +
+			// reqPieceResponseMessageSize);
 			in.readFully(ch, 0, ch.length);
-
-			// byte[] ch = new byte[50000];
-			// int numRead = in.read(ch, 0, ch.length);
-			// System.out.println("Number of characters read: " + numRead);
 			piece = new String(ch);
-			System.out.println(piece);
-
-			// in.close();
+			// System.out.println(piece);
 		} catch (IOException e) {
-			System.out.println("receivePieces. Read Timeout");
+			// System.out.println("receivePieces. Read Timeout");
 		}
 		return piece;
 	}
 
-	// The length of the tcp string to be read in bytes
+	// The length of the tcp string to be read in bytes.
 	private int getInputLength(DataInputStream in) {
 		int numRead = 0;
-		try {
+		try {// Because the bittorrent protocol messages start with a 4-byte
+				// message length
 			numRead = in.readInt();
-			System.out.println("numRead: " + numRead);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -327,41 +330,9 @@ public class Messages {
 		return numRead;
 	}
 
-	/*
-	 * public void findNode(InetAddress ip, int port, String id, ArrayList
-	 * findNodeCompactInfoList) throws Exception { Map<byte[], byte[]> args =
-	 * new LinkedHashMap<byte[], byte[]>(); args.put(benc.bencodeString("id"),
-	 * benc.bencodeString(id)); args.put(benc.bencodeString("target"),
-	 * benc.bencodeString(id));
-	 * 
-	 * Map<byte[], byte[]> send_hm = new LinkedHashMap<byte[], byte[]>();
-	 * send_hm.put(benc.bencodeString("t"), benc.bencodeString("aaaa"));
-	 * send_hm.put(benc.bencodeString("y"), benc.bencodeString("q"));
-	 * send_hm.put(benc.bencodeString("q"), benc.bencodeString("find_node"));
-	 * send_hm.put(benc.bencodeString("a"), benc.bencodeDictionary(args));
-	 * byte[] send_packet = benc.bencodeDictionary(send_hm); String s = new
-	 * String(send_packet); // System.out.println("find_node packet: " + s);
-	 * byte[] nodes = null;
-	 * 
-	 * Map decoded_reply = udpRequestResponse(send_packet, ip, port);
-	 * 
-	 * System.out.println("DECODED find_node: " + decoded_reply);
-	 * 
-	 * if (decoded_reply != null && !decoded_reply.isEmpty()) { Map r =
-	 * (LinkedHashMap) decoded_reply.get("r"); // The nodes array is 416
-	 * characters long nodes = (byte[]) r.get("nodes"); addCompactInfo(nodes,
-	 * findNodeCompactInfoList); for (int i = 0; i <
-	 * findNodeCompactInfoList.size(); i++) { byte[] node_info = (byte[])
-	 * findNodeCompactInfoList.get(i); ip = getIp(node_info); port =
-	 * getPort(node_info); // Send find node with new info findNode(ip, port,
-	 * id); } } }
-	 */
-	// Note that each node has 26 bytes: 20 for id, 4 for ip, and 2 for port
-
-	public Map getPeers(String info_hash, InetAddress ip, int port,
-			String id) throws Exception {
-		System.out.println("getPeers");
-		//System.out.println("peerCounter: " + peerCounter);
+	// The get_peers dht protocol message. Returns decoded response (unbencoded)
+	public Map getPeers(String info_hash, InetAddress ip, int port, String id)
+			throws Exception {
 		Map<byte[], byte[]> args = new LinkedHashMap<byte[], byte[]>();
 		args.put(benc.bencodeString("id"), benc.bencodeString(id));
 		args.put(benc.bencodeString("info_hash"), benc.bencodeString(info_hash));
@@ -377,42 +348,7 @@ public class Messages {
 		InetAddress node_ip = ip;
 		int node_port = port;
 		Map decoded_reply = udpRequestResponse(send_packet, ip, port);
-			System.out.println("DECODED getPeers: " + decoded_reply);
-			/*if (decoded_reply != null && !decoded_reply.isEmpty()) {
-				Map r = (LinkedHashMap) decoded_reply.get("r");
-				if (r == null) {
-					System.out.println("r is null");
-					peerCounter++;
-				}
-				values = (Vector<byte[]>) r.get("values");
-				// Possibly put this in else statement
-				nodes = (byte[]) r.get("nodes");
-				addCompactInfo(nodes, getPeersCompactInfoList);
-				
-				
-				 * if (peerCounter == getPeersCompactInfoList.size()) {
-				 * System.out.println("Resumed getPeers"); ip =
-				 * InetAddress.getByName("67.215.242.138"); port = 6881; return
-				 * getPeers(info_hash, ip, port, id, getPeersCompactInfoList,
-				 * peerCounter); }
-				 
-			}
-				peerCounter++;
-				if (peerCounter < getPeersCompactInfoList.size()) {
-					byte[] node_info = (byte[]) getPeersCompactInfoList
-							.get(peerCounter);
-					node_ip = getIp(node_info);
-					node_port = getPort(node_info);
-					//peerCounter++;
-					// Send get peers request with new info
-					// return getPeers(info_hash, node_ip, node_port, id,
-					// getPeersCompactInfoList, peerCounter);
-				}
-				else {
-					node_ip = ip;
-					node_port = port;
-				}
-				System.out.println("peer counter: " + peerCounter);*/
+		// System.out.println("DECODED getPeers: " + decoded_reply);
 		return decoded_reply;
 	}
 }
