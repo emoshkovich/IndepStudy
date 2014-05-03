@@ -1,15 +1,9 @@
-/* NOTES:
- * BitTorrent client will normally use ports 6881 to 6889.
- */
-
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
@@ -84,7 +78,7 @@ class Udp {
  * This class
  */
 public class Messages {
-	public final static int PACKET_SIZE = 4096;
+	public final static int PACKET_SIZE = 65535;
 	// UDP requests parameters data
 	private byte[] send_packet;
 	private InetAddress ip;
@@ -133,16 +127,10 @@ public class Messages {
 		this.send_packet = send_packet;
 		this.ip = ip;
 		this.port = port;
-
-		// Thread th = new MessageThread(send_packet, ip, port);
+		
 		Udp th = new Udp(send_packet, ip, port);
-		// th.start();
+		
 		th.run();
-		/*
-		 * synchronized (th) { try { th.wait(); } catch (InterruptedException e)
-		 * { e.printStackTrace(); } }
-		 */
-
 		return (LinkedHashMap) ((Udp) th).getDecodedReply();
 	}
 
@@ -163,6 +151,8 @@ public class Messages {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		// Receive the message
 		String hs_response = null;
 		try {
 			DataInputStream in = new DataInputStream(socket.getInputStream());
@@ -254,6 +244,7 @@ public class Messages {
 				+ send_packet_eh.length);
 		// send the messages
 		try {
+			sendPrMessage(dos, send_packet_eh.length, 0);
 			dos.writeBytes(new String(send_packet_eh));
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -284,7 +275,6 @@ public class Messages {
 		DataOutputStream dos = null;
 		try {
 			dos = new DataOutputStream(socket.getOutputStream());
-			sendPrMessage(dos, 24, 0);
 			sendExtensionHeader(dos);
 			sendPrMessage(dos, send_packet_em.length, ut);
 			dos.writeBytes(new String(send_packet_em));
@@ -424,9 +414,5 @@ public class Messages {
 				}
 				System.out.println("peer counter: " + peerCounter);*/
 		return decoded_reply;
-	}
-
-	private void populateMessageMap(String messageType) {
-
 	}
 }

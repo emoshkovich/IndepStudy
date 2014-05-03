@@ -57,7 +57,7 @@ public class MLinkToTorrent {
 		return sb.toString();
 	}
 
-	// possibly do it in the other class
+	//
 	public String getMetadata(Socket socket, InetAddress ip, int port) {
 
 		String metadata = "";
@@ -81,8 +81,7 @@ public class MLinkToTorrent {
 					System.out.println("reqPieceResponseMessageSize: "
 							+ request.reqPieceResponseMessageSize);
 					prefixLen = request.reqPieceResponseMessageSize - blockSize;
-				}
-				else if (i == 0){
+				} else if (i == 0) {
 					prefixLen = piece.indexOf("ee") + 2;
 				}
 				System.out.println("Piece number index: " + i + " prefixLen: "
@@ -138,11 +137,13 @@ public class MLinkToTorrent {
 			e.printStackTrace();
 		}
 		PrintWriter writer = null;
-		try {System.out.println(fileName);
+		try {
+			System.out.println(fileName);
 			writer = new PrintWriter(fileName + tf_extension);
-		} catch (FileNotFoundException e){
+		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
+		writer.println("d4:info");
 		writer.println(metadata);
 		writer.close();
 	}
@@ -187,16 +188,18 @@ public class MLinkToTorrent {
 	public static void main(String argv[]) throws Exception {
 		// Later input ml as command line argument
 		//String ml = "magnet:?xt=urn:btih:9d99e5402c95a5967f3cd360a1d7f4e4da1b6a07&dn=Games+Of+Thrones+Season+1&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker.ccc.de%3A80&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		String ml = "magnet:?xt=urn:btih:4393f6f6aeb3b773b0053a6db4ed7cd66ea7e301&dn=Fedora+16+x86+64+Full+DVD+&tr=udp%253A%252F%252Ftracker.openbittorrent.com%253A8";
-		//not found the peerString ml = "magnet:?xt=urn:btih:915930f68f841aacd6dac60869bc5ca65c121f54&dn=Electric+Power+Substations+Engineering%2C+Third+Edition&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//String ml = "magnet:?xt=urn:btih:f62c9f1a05a9e31d1c7363c52b0bca25104b05af&dn=It+Began+With+Babbage+-+The+Genesis+Of+Computer+Science+%282013%29+B&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//String ml = "magnet:?xt=urn:btih:4a990b48a6517e95ca8346481ba8a9ba03fe322e&dn=Computer+Science+-+An+Overview+%2C11th+Edition%7BBBS%7D&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//String ml = "magnet:?xt=urn:btih:61a10ba7c0cb33501ffaae9693e2f690429384c7&dn=The+Art+and+Science+of+Java.An+Introduction+To+Computer+Science%5B&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//not found the peerString String ml = "magnet:?xt=urn:btih:ebee8a025a6d8a2ac802cb21bfdedafd63d48734&dn=MIT+-+Mathematics+For+Computer+Science&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//String ml = "magnet:?xt=urn:btih:b58a43aa5ebe5475159ffc259b7e2ede815d90ff&dn=Computer+Science+Programming+Basics+in+Ruby&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//not found the peerString String ml = "magnet:?xt=urn:btih:8a4241c9ee8d14568f0534389cc59c7313912289&dn=Computer+Science+-+An+Overview+%289th+Edition%29&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		//not found the peerString String ml = "magnet:?xt=urn:btih:be3e31357e30c2c6835c70bd5efb5c9189482df7&dn=Tutsplus+-++Intro+To+Computer+Science+Programming+With+Java+201+&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
-		
+		//String ml = "magnet:?xt=urn:btih:915930f68f841aacd6dac60869bc5ca65c121f54&dn=Electric+Power+Substations+Engineering%2C+Third+Edition&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+		 //String ml = "magnet:?xt=urn:btih:f62c9f1a05a9e31d1c7363c52b0bca25104b05af&dn=It+Began+With+Babbage+-+The+Genesis+Of+Computer+Science+%282013%29+B&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+		 //String ml = "magnet:?xt=urn:btih:4a990b48a6517e95ca8346481ba8a9ba03fe322e&dn=Computer+Science+-+An+Overview+%2C11th+Edition%7BBBS%7D&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+		 //String ml = "magnet:?xt=urn:btih:61a10ba7c0cb33501ffaae9693e2f690429384c7&dn=The+Art+and+Science+of+Java.An+Introduction+To+Computer+Science%5B&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+		 String ml = "magnet:?xt=urn:btih:ebee8a025a6d8a2ac802cb21bfdedafd63d48734&dn=MIT+-+Mathematics+For+Computer+Science&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+		// String ml =
+		// "magnet:?xt=urn:btih:b58a43aa5ebe5475159ffc259b7e2ede815d90ff&dn=Computer+Science+Programming+Basics+in+Ruby&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+		// String ml =
+		// "magnet:?xt=urn:btih:8a4241c9ee8d14568f0534389cc59c7313912289&dn=Computer+Science+-+An+Overview+%289th+Edition%29&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+		// String ml =
+		// "magnet:?xt=urn:btih:be3e31357e30c2c6835c70bd5efb5c9189482df7&dn=Tutsplus+-++Intro+To+Computer+Science+Programming+With+Java+201+&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Ftracker-ccc.de%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+
 		Messages req = new Messages();
 		ArrayList getPeersCompactInfoList = new ArrayList();
 		MLinkToTorrent mlt = new MLinkToTorrent(getPeersCompactInfoList);
@@ -222,7 +225,8 @@ public class MLinkToTorrent {
 			mlt.decodePeer(decoded_reply);
 		}
 
-		while (metadata.equals("")) {
+		String sha1 = "";
+		while (!sha1.equals(info_hash_hex)) {
 			// while (peer == null) {
 			Vector<byte[]> values = null;
 			// Should it be an if or a while loop?
@@ -274,12 +278,12 @@ public class MLinkToTorrent {
 				decoded_reply = req.getPeers(info_hash, bootstrap_ip,
 						bootstrap_port, id);
 			}
-			// }
+			if (metadata.equals("")){
+				continue;
+			}
+			mlt.createTorrentFile(metadata);
+			sha1 = sha1(metadata);
+			System.out.println("The sha1 of torrent file: " + sha1);
 		}
-
-		mlt.createTorrentFile(metadata);
-		String sha1 = sha1(metadata);
-		System.out.println("The sha1 of torrent file: " + sha1);
-
 	}
 }
