@@ -19,6 +19,9 @@ import java.util.Vector;
  * Retrieves info hash from the magnet link, and uses 
  * it to send messages to nodes and peers to retrieve 
  * the information that will be put into the torrent file
+ *
+ * To run the program, use terminal to go to the folder where the 
+ * compiled program is stored, and type java MLinkToTorrent 'magnet_link'
  */
 public class MLinkToTorrent {
 	private static String id = "abcdefghij0123456789";
@@ -160,7 +163,8 @@ public class MLinkToTorrent {
 			e.printStackTrace();
 		}
 		writer.print("d4:info");
-		writer.println(metadata);
+		writer.print(metadata);
+		writer.print("e");
 		writer.close();
 	}
 
@@ -300,7 +304,7 @@ public class MLinkToTorrent {
 			mlt.createTorrentFile(metadata);
 			// Check if sha1 matches the info hash
 			sha1 = sha1(metadata);
-			System.out.println("The sha1 of torrent file: " + sha1);
 		}
+		System.out.println("The sha1 of torrent file: " + sha1);
 	}
 }
