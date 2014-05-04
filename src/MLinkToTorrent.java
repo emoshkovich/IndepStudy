@@ -21,7 +21,7 @@ import java.util.Vector;
  * the information that will be put into the torrent file
  *
  * To run the program, use terminal to go to the folder where the 
- * compiled program is stored, and type java MLinkToTorrent 'magnet_link'
+ * compiled program is stored, and type java MLinkToTorrent 'magnet_link' '/path/'
  */
 public class MLinkToTorrent {
 	private static String id = "abcdefghij0123456789";
@@ -147,9 +147,9 @@ public class MLinkToTorrent {
 	}
 
 	// Creates a torrent file and puts it into the home directory
-	public void createTorrentFile(String metadata) {
+	public void createTorrentFile(String metadata, String path) {
 		String fileName = info_hash_hex.toUpperCase();
-		File f = new File(fileName + tf_extension);
+		File f = new File(path + fileName + tf_extension);
 		try {
 			f.createNewFile();
 		} catch (IOException e) {
@@ -158,7 +158,7 @@ public class MLinkToTorrent {
 		PrintWriter writer = null;
 		try {
 			// System.out.println(fileName);
-			writer = new PrintWriter(fileName + tf_extension);
+			writer = new PrintWriter(path + fileName + tf_extension);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
@@ -211,8 +211,8 @@ public class MLinkToTorrent {
 
 	public static void main(String argv[]) throws Exception {
 		// Later input ml as command line argument
-		if (argv.length == 0) {
-			System.err.println("Please enter the magnet link");
+		if (argv.length < 2) {
+			System.err.println("Please enter the magnet link and the path");
 			return;
 		}
 		Messages req = new Messages();
@@ -301,7 +301,7 @@ public class MLinkToTorrent {
 				continue;
 			}
 			// Create torrent file with the metadata
-			mlt.createTorrentFile(metadata);
+			mlt.createTorrentFile(metadata, argv[1]);
 			// Check if sha1 matches the info hash
 			sha1 = sha1(metadata);
 		}
