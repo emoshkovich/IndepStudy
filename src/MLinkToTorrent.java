@@ -305,6 +305,6 @@ public class MLinkToTorrent {
 			// Check if sha1 matches the info hash
 			sha1 = sha1(metadata);
 		}
-		System.out.println("The sha1 of torrent file: " + sha1);
+		//System.out.println("The sha1 of torrent file: " + sha1);
 	}
 }
